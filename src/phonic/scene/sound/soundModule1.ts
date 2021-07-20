@@ -1,16 +1,18 @@
 import * as PIXI from 'pixi.js';
 import Config from '@/com/util/Config';
-import { ResourceManager } from '@/phonics/core/resourceManager';
+import { ResourceManager } from '@/phonic/core/resourceManager';
 import { SoundModule } from './soundModule';
-import { gameData } from '@/phonics/core/resource/product/gameData';
+import { gameData } from '@/phonic/core/resource/product/gameData';
 import gsap, { Linear, MorphSVGPlugin, Power0, TweenMax } from 'gsap/all';
-import { debugLine, shuffleArray } from '@/phonics/utill/gameUtil';
+import { debugLine, shuffleArray } from '@/phonic/utill/gameUtil';
 import { Sound } from './sound';
 import { Tween } from 'jquery';
 import pixiSound from 'pixi-sound';
-import { StarBar } from '@/phonics/widget/star';
-import { Eop } from '@/phonics/widget/eop';
+import { StarBar } from '@/phonic/widget/star';
+import { Eop } from '@/phonic/widget/eop';
+import { PhonicsApp } from '@/phonic/core/app';
 
+// 글자의 파도를 꽉채우면 나오는 완성카드
 export class CompleteCard extends PIXI.Container {
 	private mTxtArray: Array<PIXI.Text>;
 
@@ -21,6 +23,7 @@ export class CompleteCard extends PIXI.Container {
 		super();
 	}
 
+	// 변수 초기화 및 재설정
 	async onInit() {
 		this.mTxtArray = [];
 		this.mTxtStage = new PIXI.Container();
@@ -34,6 +37,7 @@ export class CompleteCard extends PIXI.Container {
 		this.mImgStage.visible = false;
 	}
 
+	// 이미지 카드와 단어의 등장 [모션 위주 코드]
 	show(): Promise<void> {
 		return new Promise<void>(resolve => {
 			let wordSnd = ResourceManager.Handle.getCommon(
@@ -69,6 +73,7 @@ export class CompleteCard extends PIXI.Container {
 		});
 	}
 
+	// 단어 텍스트를 만든다.
 	createText() {
 		let offsetX = 0;
 
@@ -102,24 +107,9 @@ export class CompleteCard extends PIXI.Container {
 			this.mTxtStage.height / 2,
 		);
 		this.mTxtStage.position.set(Config.width / 2 + 20, 480);
-
-		// this.mTxtStage.interactive = true;
-
-		// let flag = false;
-		// this.mTxtStage
-		// 	.on('pointerdown', () => {
-		// 		flag = true;
-		// 	})
-		// 	.on('pointermove', (evt: PIXI.InteractionEvent) => {
-		// 		if (!flag) return;
-		// 		this.mTxtStage.y = evt.data.global.y;
-		// 		console.log(this.mTxtStage.y);
-		// 	})
-		// 	.on('pointerup', () => {
-		// 		flag = false;
-		// 	});
 	}
 
+	// 단어 이미지카드를 만든다.
 	createImg() {
 		const whiteBG = new PIXI.Graphics();
 		whiteBG.beginFill(0xffffff, 1);
@@ -138,24 +128,9 @@ export class CompleteCard extends PIXI.Container {
 			this.mImgStage.height / 2,
 		);
 		this.mImgStage.position.set(Config.width / 2, 180);
-
-		// this.mImgStage.interactive = true;
-
-		// let flag = false;
-		// this.mImgStage
-		// 	.on('pointerdown', () => {
-		// 		flag = true;
-		// 	})
-		// 	.on('pointermove', (evt: PIXI.InteractionEvent) => {
-		// 		if (!flag) return;
-		// 		this.mImgStage.y = evt.data.global.y;
-		// 		console.log(this.mImgStage.y);
-		// 	})
-		// 	.on('pointerup', () => {
-		// 		flag = false;
-		// 	});
 	}
 
+	// 카드가 나오고 사운드가 끝나면 사라지는 코드 [모션 위주]
 	endMotion(): Promise<void> {
 		return new Promise<void>(resolve => {
 			gsap.to(this.mTxtStage.scale, { x: 0, y: 0, duration: 0.5 });
@@ -167,6 +142,7 @@ export class CompleteCard extends PIXI.Container {
 		});
 	}
 
+	// 메모리 초기화
 	end() {
 		this.removeChildren();
 		this.mTxtArray = [];
@@ -175,6 +151,7 @@ export class CompleteCard extends PIXI.Container {
 	}
 }
 
+// 글자안에서 출렁이는 파도 효과
 export class Wave extends PIXI.Container {
 	private mCircleAry: Array<PIXI.Graphics>;
 	private mWaveAry: Array<PIXI.Sprite>;
@@ -253,7 +230,9 @@ export class Wave extends PIXI.Container {
 			for (const wave of this.mWaveAry) {
 				gsap.killTweensOf(wave);
 				this.removeChild(wave);
+				wave.destroy();
 			}
+			this.mWaveAry = [];
 
 			for (let i = 0; i < this.mCircleAry.length; i++) {
 				this.mCircleAry[i].visible = true;
@@ -277,6 +256,7 @@ export class Wave extends PIXI.Container {
 					.to(this.mCircleAry[i].scale, { x: 1, y: 1, duration: 0.5 })
 					.eventCallback('onComplete', () => {
 						gsap.killTweensOf(this.mCircleAry[i]);
+						this.mCircleAry[i].destroy();
 						this.mCircleAry[i] = null;
 						if (i == this.mCircleAry.length - 1) {
 							this.mCircleAry = [];
@@ -301,13 +281,19 @@ export class QuizTxt extends PIXI.Sprite {
 	constructor(private mText: string) {
 		super();
 	}
+
+	// 데이터 초기화 및 재설정
 	async onInit() {
 		this.removeChildren();
 		await this.createTxt();
 		await this.createWaveGraphic();
 	}
 
-	// 글자이미지, 클릭할때 나오는 스파인 생성
+	// 글자이미지 생성
+
+	// 알파벳 라인 이미지
+	// 파도 이미지
+	// 흰바탕 글자 이미지
 	private createTxt(): Promise<void> {
 		return new Promise<void>(resolve => {
 			// 알파벳 흰바탕 이미지 ↙
@@ -421,8 +407,6 @@ export class Sound1 extends SoundModule {
 
 	private mCompleteCard: CompleteCard;
 
-	private mClickSpine: PIXI.spine.Spine;
-
 	private mAffor: PIXI.Sprite;
 	private mAfforDelay: any;
 	private mAfforAni: gsap.core.Timeline;
@@ -501,45 +485,41 @@ export class Sound1 extends SoundModule {
 			this.mQuizTxt = new QuizTxt(title);
 			this.mQuizTxt.position.set(this.width / 2, this.height / 2);
 
-			this.mClickSpine = new PIXI.spine.Spine(
+			const clickEffect = new PIXI.spine.Spine(
 				ResourceManager.Handle.getCommon('sound_effect.json').spineData,
 			);
-			this.mClickSpine.state.setAnimation(
+			clickEffect.state.setAnimation(
 				0,
 				`${Config.subjectNum}_${title}_ani`,
 				false,
 			);
 
+			clickEffect.zIndex = 3;
+			clickEffect.visible = false;
 			this.sortableChildren = true;
-			this.mClickSpine.zIndex = 3;
-			this.mClickSpine.visible = false;
 
 			this.mQuizTxt.scale.set(0);
-			this.mStage.addChild(this.mQuizTxt, this.mClickSpine);
+			this.mStage.addChild(this.mQuizTxt, clickEffect);
 
 			gsap
 				.to(this.mQuizTxt.scale, { x: 1, y: 1, duration: 0.5 })
 				.eventCallback('onComplete', () => {
 					this.interactive = true;
-
 					let hideFuction = null;
 					this.on('pointertap', (evt: PIXI.InteractionEvent) => {
 						if (hideFuction) {
 							hideFuction.kill();
 							hideFuction = null;
 						}
-
-						const x = evt.data.global.x;
-						const y = evt.data.global.y - 44;
-						this.mClickSpine.position.set(x, y);
-						this.mClickSpine.visible = true;
-						this.mClickSpine.state.setAnimation(
+						clickEffect.position.set(evt.data.global.x, evt.data.global.y - 64);
+						clickEffect.visible = true;
+						clickEffect.state.setAnimation(
 							0,
 							`${Config.subjectNum}_${title}_ani`,
 							false,
 						);
 						hideFuction = gsap.delayedCall(1, () => {
-							this.mClickSpine.visible = false;
+							clickEffect.visible = false;
 						});
 					});
 				});
@@ -703,7 +683,7 @@ export class Sound1 extends SoundModule {
 		this.mStage = null;
 		this.mQuizTxt = null;
 		this.mCompleteCard = null;
-		this.mClickSpine = null;
+		// this.mClickSpine = null;
 		this.mAffor = null;
 		this.mAfforDelay = null;
 		this.mAfforAni = null;

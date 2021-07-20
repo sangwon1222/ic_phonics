@@ -24,6 +24,23 @@ window['popUpYes'] = async function() {
 	window['Android'].exit();
 };
 
+window['app_visibilitychange'] = () => {
+	if (document.hidden == false) {
+		PIXI.Ticker.shared.start();
+		PIXISound.resumeAll();
+		// App.Handle.pauseApp = false;
+		// if (window['video']) window['video'].play();
+	} else {
+		PIXI.Ticker.shared.stop();
+		PIXISound.pauseAll();
+		App.Handle.pauseApp = true;
+		// if (window['video']) window['video'].pause();
+	}
+	if (window['video']) window['video'].videoStateCheck(); // 0413 백지원 주임 메일 수정요청에 따라 비활성화 -> 활성화시 항상 멈춤 상태
+};
+// 기기 ON -> OFF 시 처리를 나타낸다.
+document.addEventListener('visibilitychange', window['app_visibilitychange']);
+
 export class App extends PIXI.Application {
 	//-----------------------------------
 	// singleton
@@ -101,22 +118,6 @@ export class App extends PIXI.Application {
 		// 		}
 		// 	}
 		// };
-
-		// 기기 ON -> OFF 시 처리를 나타낸다.
-		document.addEventListener('visibilitychange', () => {
-			if (document.hidden == false) {
-				PIXI.Ticker.shared.start();
-				PIXISound.resumeAll();
-				// App.Handle.pauseApp = false;
-				// if (window['video']) window['video'].play();
-			} else {
-				PIXI.Ticker.shared.stop();
-				PIXISound.pauseAll();
-				App.Handle.pauseApp = true;
-				// if (window['video']) window['video'].pause();
-			}
-			if (window['video']) window['video'].videoStateCheck(); // 0413 백지원 주임 메일 수정요청에 따라 비활성화 -> 활성화시 항상 멈춤 상태
-		});
 
 		PIXI.settings.TARGET_FPMS = 0.03;
 		this.mURLRoot = Config.restAPIProd;

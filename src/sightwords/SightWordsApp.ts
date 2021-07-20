@@ -341,7 +341,6 @@ export class SightWordsApp extends App {
 				tSceneName,
 				this.mCurrentIdx.mIdx + 1,
 			);
-		console.error(tSceneName, this.mCurrentIdx.mIdx + 1);
 	}
 
 	// Scene ---------------------------------------------------

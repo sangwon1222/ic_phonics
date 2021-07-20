@@ -1,5 +1,6 @@
 <template>
 	<div id="app" ref="app">
+		<!-- <canvas id="canvas" ref="canvas"></canvas> -->
 		<router-view />
 	</div>
 </template>
@@ -15,25 +16,23 @@ let app = null;
 	components: {},
 })
 export default class App extends Vue {
-	private fullFlag = false;
-	private mobilecolume = false;
-
 	async created() {
-		// console.log(new Date().toString());
+		console.log(new Date().toString());
 		if (window['video']) {
 			window['video'].pause();
 			window['video'] = null;
 		}
+		await this.getInitInfo();
 
 		switch (Config.getInitVariable.subj_viw_nm) {
 			case '알파벳':
 				this.goAlphabet();
 				break;
 			case '파닉스리딩':
-				this.goPhonicsReading();
+				this.goPhonics();
 				break;
 			case '파닉스':
-				this.goPhonics();
+				this.goPhonic();
 				break;
 			case '사이트워드':
 				this.goSightWords();
@@ -43,7 +42,11 @@ export default class App extends Vue {
 		}
 	}
 	async mounted() {
-		//
+		// app = new Alphabet(this.$refs.canvas as HTMLCanvasElement);
+		// window.addEventListener('resize', () => {
+		// 	this.reclacScreen(this.$refs.canvas as HTMLCanvasElement);
+		// });
+		// this.reclacScreen(this.$refs.canvas as HTMLCanvasElement);
 	}
 
 	//getInitVariables 호출을 나타낸다.
@@ -53,7 +56,7 @@ export default class App extends Vue {
 			const tData = await window['Android'].getInitVariables();
 			// console.log(JSON.stringify(tData));
 			Util.jsonToProperty(tData, Config.getInitVariable);
-			// console.log(JSON.stringify(Config.getInitVariable));
+			console.log(JSON.stringify(Config.getInitVariable));
 		}
 	}
 
@@ -63,8 +66,8 @@ export default class App extends Vue {
 	goPhonics() {
 		this.$router.replace('/phonics');
 	}
-	goPhonicsReading() {
-		this.$router.replace('/phonicsreading');
+	goPhonic() {
+		this.$router.replace('/phonic');
 	}
 	goSightWords() {
 		this.$router.replace('/sightwords');

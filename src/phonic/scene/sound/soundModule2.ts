@@ -1,17 +1,18 @@
 import Config from '@/com/util/Config';
-import { gameData } from '@/phonics/core/resource/product/gameData';
-import { ResourceManager } from '@/phonics/core/resourceManager';
-import { Cam } from '@/phonics/widget/cam';
+import { gameData } from '@/phonic/core/resource/product/gameData';
+import { ResourceManager } from '@/phonic/core/resourceManager';
+import { Cam } from '@/phonic/widget/cam';
 import RecordRTC from 'recordrtc';
 import gsap, { Power0 } from 'gsap/all';
 import pixiSound from 'pixi-sound';
 import * as PIXI from 'pixi.js';
 import { Sound } from './sound';
 import { SoundModule } from './soundModule';
-import { PhonicsApp } from '@/phonics/core/app';
-import { debugLine } from '@/phonics/utill/gameUtil';
-import { Eop } from '@/phonics/widget/eop';
+import { PhonicsApp } from '@/phonic/core/app';
+import { debugLine } from '@/phonic/utill/gameUtil';
+import { Eop } from '@/phonic/widget/eop';
 
+// 카메라 필터버튼
 export class FillterBtn extends PIXI.Sprite {
 	private mNormal: PIXI.Texture;
 	private mOn: PIXI.Texture;
@@ -52,6 +53,7 @@ export class FillterBtn extends PIXI.Sprite {
 	}
 }
 
+// 카메라 리모콘 (카메라 필터버튼이 모여 있는 곳)
 export class CameraRemote extends PIXI.Container {
 	private mBtnAry: Array<FillterBtn>;
 
@@ -222,6 +224,7 @@ export class CameraRemote extends PIXI.Container {
 	}
 }
 
+// 녹음 버튼
 export class RecBtn extends PIXI.Sprite {
 	private mOn: PIXI.Texture;
 	private mOff: PIXI.Texture;
@@ -322,6 +325,7 @@ export class RecBtn extends PIXI.Sprite {
 	}
 }
 
+// 녹음 리모콘 (녹음 버튼이 모여 있는 곳)
 export class RecRemote extends PIXI.Container {
 	private mBtnAry: Array<RecBtn>;
 	private mStep: number;
@@ -594,15 +598,12 @@ export class Sound2 extends SoundModule {
 	constructor() {
 		super('sound2');
 	}
+
+	// 데이터 리셋 및 재설정
 	async onInit() {
 		Config.currentMode = 1;
 		Config.currentIdx = 1;
 		await (this.parent.parent as Sound).controller.reset();
-
-		if (Config.totalMode >= Config.currentMode) {
-			Config.totalMode = 1;
-			Config.totalIdx = 0;
-		}
 
 		await pixiSound.resumeAll();
 		this.removeChildren();
@@ -612,6 +613,7 @@ export class Sound2 extends SoundModule {
 		this.addChild(bg);
 	}
 
+	// 게임 UI 생성
 	async onStart() {
 		await this.createObject();
 		await this.mCameraRemote.onInit();
@@ -636,7 +638,7 @@ export class Sound2 extends SoundModule {
 				hideFuction.kill();
 				hideFuction = null;
 			}
-			clickEffect.position.set(evt.data.global.x, evt.data.global.y - 80);
+			clickEffect.position.set(evt.data.global.x, evt.data.global.y - 64);
 			clickEffect.visible = true;
 			clickEffect.state.setAnimation(0, 'animation', false);
 
@@ -648,10 +650,12 @@ export class Sound2 extends SoundModule {
 		this.mRecRemote.start();
 	}
 
+	// 카메라 작동 시작
 	startCamera() {
 		this.mCameraRemote.startCamera();
 	}
 
+	// 카메라 리모콘과 녹음 리모콘을 만든다.
 	createObject(): Promise<void> {
 		return new Promise<void>(resolve => {
 			this.mCameraRemote = new CameraRemote();
@@ -663,12 +667,11 @@ export class Sound2 extends SoundModule {
 		});
 	}
 
-	//게임 끝
+	//게임모듈이 끝났을 때 실행, => eop 실행 및 데이터 초기화
 	//RecBtn=> constuctor에서 실행
+
 	async endGame() {
 		await (this.parent.parent as Sound).controller.outro();
-		Config.totalMode = 2;
-		Config.totalIdx = 0;
 		await gsap.globalTimeline.clear();
 		const eop = new Eop();
 		eop.zIndex = 20;
@@ -681,6 +684,7 @@ export class Sound2 extends SoundModule {
 		this.mRecRemote = null;
 	}
 
+	// this.parent.parent as Sound).endGame()=> 에서 실행 [메모리 초기화]
 	async deleteMemory() {
 		await gsap.globalTimeline.clear();
 		this.removeChildren();

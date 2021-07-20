@@ -28,12 +28,21 @@ const routes: Array<RouteConfig> = [
 	},
 	{
 		// path: '/ictest/phonics',
-		path: '/phonicsreading',
-		name: 'phonicsreading',
+		path: '/phonics',
+		name: 'phonics',
 		// route level code-splitting
 		// this generates a separate chunk (about.[hash].js) for this route
 		// which is lazy-loaded when the route is visited.
-		component: () => import('@/phonicsreading/phonicsPlayer.vue'),
+		component: () => import('@/phonics/phonicsPlayer.vue'),
+	},
+	{
+		// path: '/ictest/phonics',
+		path: '/phonic',
+		name: 'phonic',
+		// route level code-splitting
+		// this generates a separate chunk (about.[hash].js) for this route
+		// which is lazy-loaded when the route is visited.
+		component: () => import('@/phonic/phonicsPlayer.vue'),
 	},
 	{
 		// path: '/ictest/phonics',
@@ -43,14 +52,6 @@ const routes: Array<RouteConfig> = [
 		// this generates a separate chunk (about.[hash].js) for this route
 		// which is lazy-loaded when the route is visited.
 		component: () => import('@/sightwords/sightwordsPlayer.vue'),
-	},
-	{
-		path: '/phonics',
-		name: 'phonics',
-		// route level code-splitting
-		// this generates a separate chunk (about.[hash].js) for this route
-		// which is lazy-loaded when the route is visited.
-		component: () => import('@/phonics/phonicsPlayer.vue'),
 	},
 ];
 

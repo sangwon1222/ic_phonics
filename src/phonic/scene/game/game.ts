@@ -4,14 +4,14 @@ import { SceneBase } from '../../core/sceneBase';
 import { GameModule } from './gameModule';
 import { Game1 } from './gameModule1';
 import { Game2 } from './gameModule2';
-import { Btn } from '@/phonics/widget/btn';
+import { Btn } from '@/phonic/widget/btn';
 import Config from '../../../com/util/Config';
-import { ResourceManager } from '@/phonics/core/resourceManager';
-import { Eop } from '@/phonics/widget/eop';
-import { gameData } from '@/phonics/core/resource/product/gameData';
-import { debugLine } from '@/phonics/utill/gameUtil';
+import { ResourceManager } from '@/phonic/core/resourceManager';
+import { Eop } from '@/phonic/widget/eop';
+import { gameData } from '@/phonic/core/resource/product/gameData';
+import { debugLine } from '@/phonic/utill/gameUtil';
 import pixiSound from 'pixi-sound';
-import { PhonicsApp } from '@/phonics/core/app';
+import { PhonicsApp } from '@/phonic/core/app';
 
 // 씬 아래부분 숫자 scene index
 export class ProgressBar extends PIXI.Container {
@@ -46,9 +46,9 @@ export class ProgressBar extends PIXI.Container {
 				offsetX += step.width + 20;
 
 				// 스텝을 클릭했을때,
-				step.onPointerTap = async () => {
-					(this.parent as Game).changeModule(step.idx);
-				};
+				// step.onPointerTap = async () => {
+				// 	(this.parent as Game).changeModule(step.idx);
+				// };
 			}
 
 			this.pivot.set(this.width / 2, this.height / 2);
@@ -79,7 +79,7 @@ export class Game extends SceneBase {
 	}
 	private mProgressBar: ProgressBar;
 
-	// private mClickEffect: PIXI.spine.Spine;
+	private mClickEffect: PIXI.spine.Spine;
 
 	constructor() {
 		super('game');
@@ -151,25 +151,26 @@ export class Game extends SceneBase {
 		await this.controller.reset();
 		this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
 
-		// this.interactive = true;
-		// this.mClickEffect = new PIXI.spine.Spine(
-		// 	ResourceManager.Handle.getCommon('click_effect.json').spineData,
-		// );
-		// this.addChild(this.mClickEffect);
-		// let hideFuction = null;
-		// this.on('pointertap', (evt: PIXI.InteractionEvent) => {
-		// 	if (hideFuction) {
-		// 		hideFuction.kill();
-		// 		hideFuction = null;
-		// 	}
-		// 	this.mClickEffect.position.set(evt.data.global.x, evt.data.global.y);
-		// 	this.mClickEffect.visible = true;
-		// 	this.mClickEffect.state.setAnimation(0, 'animation', false);
+		this.interactive = true;
+		this.mClickEffect = new PIXI.spine.Spine(
+			ResourceManager.Handle.getCommon('click_effect.json').spineData,
+		);
+		this.mClickEffect.visible = false;
+		this.addChild(this.mClickEffect);
+		let hideFuction = null;
+		this.on('pointertap', (evt: PIXI.InteractionEvent) => {
+			if (hideFuction) {
+				hideFuction.kill();
+				hideFuction = null;
+			}
+			this.mClickEffect.position.set(evt.data.global.x, evt.data.global.y);
+			this.mClickEffect.visible = true;
+			this.mClickEffect.state.setAnimation(0, 'animation', false);
 
-		// 	hideFuction = gsap.delayedCall(1, () => {
-		// 		this.mClickEffect.visible = false;
-		// 	});
-		// });
+			hideFuction = gsap.delayedCall(1, () => {
+				this.mClickEffect.visible = false;
+			});
+		});
 
 		await this.mGameModule[this.mCurrentGameIdx].onInit();
 		await PhonicsApp.Handle.loddingFlag(false);
@@ -196,6 +197,10 @@ export class Game extends SceneBase {
 			return;
 		}
 		await gsap.globalTimeline.clear();
+
+		pixiSound.stopAll();
+		await pixiSound.context.refresh();
+
 		if (window['ticker']) {
 			gsap.ticker.remove(window['ticker']);
 		}
@@ -223,6 +228,9 @@ export class Game extends SceneBase {
 			gsap.ticker.remove(window['ticker']);
 		}
 
+		pixiSound.stopAll();
+		await pixiSound.context.refresh();
+
 		// await this.mGameModule[this.mCurrentGameIdx].endGame();
 		await this.mGameModule[this.mCurrentGameIdx].deleteMemory();
 
@@ -247,6 +255,9 @@ export class Game extends SceneBase {
 			return;
 		}
 
+		pixiSound.stopAll();
+		await pixiSound.context.refresh();
+
 		this.mProgressBar.changeStep();
 
 		this.mStage.removeChildren();
@@ -259,26 +270,14 @@ export class Game extends SceneBase {
 
 	// 게임 끝나고 outro 실행
 	async endGame() {
+		pixiSound.stopAll();
 		await gsap.globalTimeline.clear();
 
 		if (window['ticker']) {
 			gsap.ticker.remove(window['ticker']);
-			window['ticker'] = null;
 		}
-		// 	this.controller.outro();
-		// 	const eop = new Eop();
-		// 	this.mStage.addChild(eop);
-		// 	await eop.onInit();
-		// 	await eop.start();
+		window['ticker'] = null;
 
-		// 	if (!Config.isFreeStudy) {
-		// 		this.prevNextBtn.onClickNext = async () => {
-		// 			this.clickNext();
-		// 		};
-		// 	}
-		// 	this.prevNextBtn.unLock();
-		// } else {
 		await this.goScene('outro');
-		// }
 	}
 }

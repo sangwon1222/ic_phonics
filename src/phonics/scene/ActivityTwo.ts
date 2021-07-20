@@ -549,10 +549,26 @@ export class ActivityTwo extends SceneBase {
 		tSnds.push([Rsc.viewer, 'common', 'gain_star.mp3']);
 		tSnds.push([Rsc.viewer, 'common', `activity_correct.mp3`]);
 		tSnds.push([Rsc.viewer, 'common', `activity_wrong.mp3`]);
-		tSnds.push([Rsc.product, 'common', `${this.mQuestWordAry[0]}.mp3`]);
-		tSnds.push([Rsc.product, 'common', `${this.mQuestWordAry[1]}.mp3`]);
-		tSnds.push([Rsc.product, 'common', `${this.mQuestWordAry[2]}.mp3`]);
-		tSnds.push([Rsc.product, 'common', `${this.mQuestWordAry[3]}.mp3`]);
+		tSnds.push([
+			Rsc.product,
+			'common',
+			`${this.mQuestWordAry[0].toLowerCase()}.mp3`,
+		]);
+		tSnds.push([
+			Rsc.product,
+			'common',
+			`${this.mQuestWordAry[1].toLowerCase()}.mp3`,
+		]);
+		tSnds.push([
+			Rsc.product,
+			'common',
+			`${this.mQuestWordAry[2].toLowerCase()}.mp3`,
+		]);
+		tSnds.push([
+			Rsc.product,
+			'common',
+			`${this.mQuestWordAry[3].toLowerCase()}.mp3`,
+		]);
 		tSnds.push([Rsc.product, this.name, `${Config.subjectNum}_ac_3.mp3`]);
 		tSnds.push([Rsc.product, this.name, `${Config.subjectNum}_ac_4.mp3`]);
 		await SoundManager.Handle.loadSounds(tSnds);

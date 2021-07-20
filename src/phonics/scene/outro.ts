@@ -1,148 +1,197 @@
-import gsap, { Power0 } from 'gsap/all';
-import { PhonicsApp } from '../core/app';
-import { ResourceManager } from '../core/resourceManager';
-import { SceneBase } from '../core/sceneBase';
-import config from '../../com/util/Config';
+import { App } from '../../com/core/App';
+import { SceneBase } from '../../com/core/SceneBase';
+
+// Manager
+import { ProductRscManager } from '../../com/manager/ProductRscManager';
+import { ViewerRscManager } from '../../com/manager/ViewerRscManager';
+import { Rsc, SoundManager } from '../../com/manager/SoundManager';
+
+// Scene
+import { Button } from '../../com/widget/Button';
+import { EventType } from '../../com/core/EventType';
+import gsap from 'gsap';
 
 export class Outro extends SceneBase {
-	private mCha: PIXI.Sprite;
-	private mStarAry: Array<PIXI.Sprite>;
+	private mCloseBtn: Button;
+	private mTitleTxt: PIXI.Text;
+	private mTureTrue: PIXI.Sprite;
+
+	private mIntroMotion: any;
+	private mViewSheet: PIXI.Spritesheet;
 
 	constructor() {
-		super('outro');
+		super();
+		this.name = 'Outro';
 	}
+
 	async onInit() {
-		PhonicsApp.Handle.controllerVisible(false);
+		//
 
-		await this.createBG();
-		await this.createTxt();
-		await this.createStar();
-		await this.createCha();
+		const bgGraphics = new PIXI.Graphics();
+
+		// this.getDataInfo();
+
+		// bgGraphics.beginFill(
+		// 	ProductRscManager.Handle.getResource(this.name, 'bgcolor') as any,
+		// );
+		bgGraphics.beginFill(0x48bfb0);
+		bgGraphics.drawRect(0, 0, App.Handle.appWidth, App.Handle.appHeight);
+		bgGraphics.endFill();
+		this.addChild(bgGraphics);
+		// this.bgImg = new PIXI.Sprite(ViewerRscManager.Handle.getResource("intro", "intro_bg.png").texture);
+		// this.addChild(this.bgImg);
+
+		this.mViewSheet = ViewerRscManager.Handle.getResource(
+			'common',
+			`ap_view.json`,
+		).spritesheet;
+
+		this.mCloseBtn = new Button(this.mViewSheet.textures['big_close_btn.png']);
+
+		this.mCloseBtn.addCustomEventListener(EventType.ButtonUp, () => {
+			// this.destroy();
+			this.dispatchEvent(EventType.ReceiveData, 'Quit');
+		});
+
+		this.mCloseBtn.setAnchor(0.5, 0.5);
+		this.mCloseBtn.position.set(1234, 38);
+		// this.addChild(this.closeBtn);
+		App.Handle.addChilds(this, this.mCloseBtn);
+
+		this.mTureTrue = new PIXI.Sprite(this.mViewSheet.textures['outro_cha.png']);
+		this.mTureTrue.anchor.set(0.5);
+		this.mTureTrue.position.set(640.5, 508);
+		this.mTureTrue.alpha = 0;
+		this.addChild(this.mTureTrue);
+
+		// const BGM = ViewerRscManager.Handle.getResource(this.name, 'snd_bgm.mp3')
+		// 	.sound;
+
+		// BGM.play({ loop: true });
+
+		const style = new PIXI.TextStyle({
+			align: 'center',
+			fill: '#FFFFFF',
+			fontFamily: 'minigate Bold ver2',
+			fontWeight: 'normal',
+			fontSize: 127,
+			// stroke: '#C45F52',
+			// strokeThickness: 8,
+			// lineJoin: 'round',
+		});
+
+		this.mTitleTxt = new PIXI.Text('See you next time');
+		this.mTitleTxt.style = style;
+		// this.tempTxt.text = 'ALPHABET';
+		this.mTitleTxt.anchor.set(0.5, 0.5);
+		this.mTitleTxt.position.set(App.Handle.appWidth / 2 - 10, 216.5);
+		App.Handle.addChilds(this, this.mTitleTxt);
+
+		const styleEx = new PIXI.TextStyle({
+			align: 'center',
+			fill: '#FFFFFF',
+			fontFamily: 'minigate Bold ver2',
+			fontStyle: 'italic',
+			fontWeight: '',
+			fontSize: 127,
+			// stroke: '#C45F52',
+			// strokeThickness: 8,
+			// lineJoin: 'round',
+			padding: 20,
+		});
+
+		const tTitleTxt2 = new PIXI.Text('!');
+		tTitleTxt2.style = styleEx;
+		// this.tempTxt.text = 'ALPHABET';
+		tTitleTxt2.anchor.set(0.5, 0.5);
+		// tTitleTxt2.position.set(App.Handle.appWidth / 2 200, -tTitleTxt2.height);
+		tTitleTxt2.position.set(
+			App.Handle.appWidth / 2 + this.mTitleTxt.width / 2,
+			216.5,
+		);
+		App.Handle.addChilds(this, tTitleTxt2);
 	}
-
 	async onStart() {
-		await this.playOutro();
-	}
+		await this.preLoadSound();
 
-	private createBG(): Promise<void> {
-		return new Promise<void>(resolve => {
-			const bg = new PIXI.Graphics();
-			bg.beginFill(0x0080db, 1);
-			bg.drawRect(0, 0, config.width, config.height);
-			bg.endFill();
-			bg.alpha = 0;
-
-			const close = new PIXI.Sprite(
-				ResourceManager.Handle.getCommon('close_btn.png').texture,
-			);
-			close.anchor.set(0.5);
-			close.position.set(config.width - 50, 50);
-			close.interactive = true;
-			close.on('pointertap', () => {
-				window.close();
-			});
-			this.addChild(bg, close);
-			gsap
-				.to(bg, { alpha: 1, duration: 0.5 })
-				.eventCallback('onComplete', () => {
-					resolve();
-				});
+		// SoundManager.Handle.play(this.name, 'snd_bgm.mp3');
+		// SoundManager.Handle.getSound(this.name, 'snd_bgm.mp3').play();
+		this.mTureTrue.scale.set(0.5);
+		gsap.to(this.mTureTrue, { alpha: 1, duration: 1 });
+		gsap.to(this.mTureTrue.scale, {
+			x: 1,
+			y: 1,
+			duration: 1,
+			ease: 'back.out',
 		});
+
+		SoundManager.Handle.play(this.name, 'snd_word.mp3');
+		// SoundManager.Handle.getSound(this.name, 'snd_word.mp3').play();
+		// gsap
+		// 	.to(this.tempTxt, { y: 216.5, duration: 1.5, ease: 'bounce.out' })
+		// 	.eventCallback('onComplete', () => {
+		// 		const tBigAniY = this.aniBigAlphabet.y;
+		// 		const wordSnd = ProductRscManager.Handle.getResource(
+		// 			'common',
+		// 			`snd_${App.Handle.getAlphabet}_word.mp3`,
+		// 		).sound;
+		// 		wordSnd.play();
+		// 		gsap
+		// 			.to(this.aniBigAlphabet, { y: tBigAniY - 100, duration: 0.5 })
+		// 			.repeat(3)
+		// 			.yoyo(true);
+		// 		// gsap.to(this.aniSmallAlphabet, {y: tBigAniY - 100, duration: 0.5, delay: 0.5}).repeat(3).yoyo(true).eventCallback('onComplete', ()=>{ this.nextMode() });
+		// 		// gsap.to(this.aniBigAlphabet, {y: 250, duration: 2.5,  ease: CustomEase.create("custom", "M0,0 C0.126,0.382 0.04,1 0.15,1 0.312,1 0.304,0.001 0.46,0 0.501,0 0.49,0 0.54,0 0.654,0.002 0.603,0.5 0.7,0.5 0.832,0.5 0.84,0 1,0 ")});
+		// 		// gsap.to(this.aniSmallAlphabet, {y: 250, duration: 2.5, delay: 0.6, ease: CustomEase.create("custom", "M0,0 C0.126,0.382 0.04,1 0.15,1 0.312,1 0.304,0.001 0.46,0 0.501,0 0.49,0 0.54,0 0.654,0.002 0.603,0.5 0.7,0.5 0.832,0.5 0.84,0 1,0 ")});
+		// 	});
+		// if (this.mIntroMotion){
+		//     this.mIntroMotion.kill();
+		//     this.mIntroMotion = null;
+		// }
+		// const tBigAniY =  this.aniBigAlphabet.y;
+		// this.mIntroMotion = gsap.timeline({});
+		// this.mIntroMotion.to(this.tempTxt, {y: 130, duration: 1.5, ease: "bounce.out"});
+		// const wordSnd = ProductRscManager.Handle.getResource('intro', 'snd_a_word.mp3').sound;
+		// wordSnd.play();
+		// this.mIntroMotion.to(this.aniBigAlphabet, {y: tBigAniY-100, duration: 0.5 }).repeat(3).yoyo(true);
+		// this.mIntroMotion.to(this.aniSmallAlphabet, {y: tBigAniY - 100, duration: 0.5 }).repeat(3).yoyo(true);
 	}
 
-	private createTxt(): Promise<void> {
-		return new Promise<void>(resolve => {
-			const txt = new PIXI.Text(`See you next time!`, {
-				fontFamily: 'minigate Bold ver2',
-				fontSize: 126,
-				fill: 0xffffff,
-				padding: 20,
-			});
-			txt.roundPixels = true;
-			txt.pivot.set(txt.width / 2, txt.height / 2);
-			txt.position.set(config.width / 2, 192);
-			this.addChild(txt);
-			txt.alpha = 0;
-			gsap
-				.to(txt, { alpha: 1, duration: 0.5 })
-				.eventCallback('onComplete', () => {
-					resolve();
-				});
-		});
-	}
-
-	private createCha(): Promise<void> {
-		return new Promise<void>(resolve => {
-			this.mCha = new PIXI.Sprite(
-				ResourceManager.Handle.getCommon('outro_cha.png').texture,
-			);
-			this.mCha.anchor.set(0.5);
-			this.mCha.scale.set(0);
-			this.mCha.position.set(config.width / 2, 476);
-			this.addChild(this.mCha);
-
-			resolve();
-		});
-	}
-
-	private createStar(): Promise<void> {
-		return new Promise<void>(resolve => {
-			this.mStarAry = [];
-
-			for (let i = 0; i < 6; i++) {
-				const star = new PIXI.Sprite(
-					ResourceManager.Handle.getCommon('outro_star.png').texture,
-				);
-				star.scale.set(0, 0);
-				star.anchor.set(0.5);
-				star.position.set(config.width / 2, 476);
-				this.addChild(star);
-				this.mStarAry.push(star);
+	//사운드 미리 불러오기를 나타낸다.
+	private async preLoadSound() {
+		if (window['Android']) {
+			if (App.Handle.loading === null || App.Handle.loading === undefined)
+				window['Android'].showLoading();
+		}
+		const tSnds = [];
+		tSnds.push([Rsc.viewer, 'common', 'intro_bgm.mp3', false, true]);
+		tSnds.push([Rsc.viewer, 'common', 'button_click.mp3']);
+		tSnds.push([Rsc.viewer, this.name, 'snd_word.mp3']);
+		await SoundManager.Handle.loadPreSounds(tSnds);
+		if (window['Android']) {
+			if (App.Handle.loading === null || App.Handle.loading === undefined) {
+				window['Android'].hideLoading();
+			} else {
+				App.Handle.loading.remove();
+				App.Handle.loading.destroy();
+				App.Handle.loading = null;
 			}
-			resolve();
-		});
+		} // 아이스크림 기기 내장 함수 호출
 	}
 
-	private playOutro(): Promise<void> {
-		return new Promise<void>(resolve => {
-			gsap.to(this.mCha.scale, { x: 1, y: 1, duration: 0.8, ease: 'back' });
-			const starPos = [
-				{ x: config.width / 2, y: 476 }, // 큰별
-				{ x: config.width / 2 - 260, y: 476 + 90 }, // 맨 왼쪽 별부터
-				{ x: config.width / 2 - 140, y: 476 - 120 },
-				{ x: config.width / 2 + 60, y: 476 - 180 },
-				{ x: config.width / 2 + 170, y: 476 - 100 },
-				{ x: config.width / 2 + 170, y: 476 + 100 }, // 맨 오른쪽 별까지
-			];
+	private nextMode() {
+		// gsap.delayedCall(0.5, ()=>{ this.dispatchEvent(EventType.ReceiveData, this.name); })
+	}
 
-			const scale = [1, 0.2, 0.15, 0.1, 0.19, 0.1];
+	private destroyGsapAni() {
+		gsap.killTweensOf(this.mTureTrue);
+	}
 
-			const angle = [0, 10, -6, 2, 30, -10];
-
-			for (let i = 0; i < scale.length; i++) {
-				gsap.to(this.mStarAry[i].scale, {
-					x: scale[i],
-					y: scale[i],
-					duration: 0.5,
-				});
-
-				gsap.to(this.mStarAry[i], {
-					x: starPos[i].x,
-					y: starPos[i].y,
-					duration: 1,
-				});
-				this.mStarAry[i].angle = angle[i];
-
-				if (i == scale.length - 1) {
-					let outroSfx = ResourceManager.Handle.getCommon('outro_sfx.mp3')
-						.sound;
-					outroSfx.play();
-					gsap.delayedCall(outroSfx.duration + 1, () => {
-						outroSfx = null;
-						resolve();
-					});
-				}
-			}
-		});
+	async onEnd() {
+		SoundManager.Handle.removeAll();
+		App.Handle.removeMotionDelay();
+		this.destroyGsapAni();
+		this.mCloseBtn?.removeCustomEventListener(EventType.ButtonUp);
+		await App.Handle.removeChilds();
 	}
 }

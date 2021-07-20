@@ -1,272 +1,274 @@
-import gsap from 'gsap/all';
-import { PhonicsApp } from '../core/app';
-import { ResourceManager } from '../core/resourceManager';
-import { SceneBase } from '../core/sceneBase';
-import config from '../../com/util/Config';
-import { shuffleArray } from '../utill/gameUtil';
-import { gameData } from '../core/resource/product/gameData';
-import Config from '../../com/util/Config';
-import { Eop } from '../widget/eop';
-import { App } from '@/com/core/App';
+import { App } from '../../com/core/App';
+import { SceneBase } from '../../com/core/SceneBase';
 
-const chaPos = [
-	{ x: 110, y: 444 },
-	{ x: 308, y: 514 },
-	{ x: 518, y: 554 },
-	{ x: 764, y: 570 },
-	{ x: 958, y: 494 },
-	{ x: 1129, y: 440 },
-];
-const shadowPos = [
-	{ x: 146, y: 510 },
-	{ x: 308, y: 604 },
-	{ x: 518, y: 682 },
-	{ x: 764, y: 682 },
-	{ x: 966, y: 606 },
-	{ x: 1136, y: 520 },
-];
+// Manager
+import { ViewerRscManager } from '../../com/manager/ViewerRscManager';
+import { ProductRscManager } from '../../com/manager/ProductRscManager';
+import { Rsc, SoundManager } from '../../com/manager/SoundManager';
+
+// Scene
+import { Button } from '../../com/widget/Button';
+import { EventType } from '../../com/core/EventType';
+import gsap from 'gsap';
+import pixiSound from 'pixi-sound';
+import Config from '@/com/util/Config';
 
 export class Intro extends SceneBase {
-	private mTitle: PIXI.Sprite;
+	private tempBtn: Button;
+	private closeBtn: Button;
+	private subjectTxt: PIXI.Text;
+	private tTitleCt: PIXI.Container;
+	private bgImg: PIXI.Sprite;
+	private aniBigAlphabet: PIXI.Sprite;
+	private aniSmallAlphabet: PIXI.Sprite;
 
-	private mCharacterAry: Array<PIXI.Sprite>;
-	private mShadowAry: Array<PIXI.Sprite>;
+	private mIntroMotion: any;
+	private mViewSheet: PIXI.Spritesheet;
+
 	constructor() {
-		super('intro');
+		super();
+		this.name = 'Intro';
 	}
+
 	async onInit() {
-		// const eop = new PIXI.spine.Spine(
-		// 	ResourceManager.Handle.getCommon('eop.json').spineData,
-		// );
-		// this.addChild(eop);
-		// eop.state.setAnimation(0, `eop3`, false);
-		// eop.position.set(Config.width / 2, Config.height / 2);
-		await ResourceManager.Handle.loadCommonResource({
-			sounds: ['title/' + gameData[`day${Config.subjectNum}`].title + '.mp3'],
+		const bgGraphics = new PIXI.Graphics();
+
+		// const tColorAry = ProductRscManager.Handle.getResource(
+		// 	this.name,
+		// 	'bgcolor',
+		// ) as any;
+
+		// bgGraphics.beginFill(tColorAry[0]);
+		bgGraphics.beginFill(0x48bfb0);
+		bgGraphics.drawRect(0, 0, App.Handle.appWidth, App.Handle.appHeight);
+		bgGraphics.endFill();
+		App.Handle.addChilds(this, bgGraphics);
+
+		this.mViewSheet = ViewerRscManager.Handle.getResource(
+			'common',
+			`ap_view.json`,
+		).spritesheet;
+
+		this.closeBtn = new Button(this.mViewSheet.textures['big_close_btn.png']);
+
+		this.closeBtn.addCustomEventListener(EventType.ButtonUp, () => {
+			this.dispatchEvent(EventType.ReceiveData, 'Quit');
 		});
-		window['currentAlphabet'] = ResourceManager.Handle.getCommon(
-			'title/' + gameData[`day${Config.subjectNum}`].title + `.mp3`,
-		).sound;
 
-		PhonicsApp.Handle.controllerVisible(false);
+		this.closeBtn.setAnchor(0.5, 0.5);
+		this.closeBtn.position.set(1234, 38);
+		// this.addChild(this.closeBtn);
+		App.Handle.addChilds(this, this.closeBtn);
 
-		await this.createBG();
-		await this.createTxt();
-		await this.createCha();
+		const style = new PIXI.TextStyle({
+			align: 'center',
+			fill: 0x1b4943,
+			fontFamily: 'minigate Bold ver2',
+			fontWeight: 'normal',
+			fontSize: 64,
+			padding: 10,
+		});
+		this.tTitleCt = new PIXI.Container();
+		const tTitleTxt = new PIXI.Text('PHONICS READING');
+		tTitleTxt.style = style;
+		// this.tempTxt.text = 'ALPHABET';
+		tTitleTxt.anchor.set(0.5, 0.5);
+		// tTitleTxt.position.set(App.Handle.appWidth / 2, -tTitleTxt.height);
+		tTitleTxt.position.set(App.Handle.appWidth / 2, 0);
+		// this.addChild(this.tempTxt);
+		App.Handle.addChilds(this.tTitleCt, tTitleTxt);
 
-		window.onkeydown = async (evt: KeyboardEvent) => {
-			if (evt.key == '+') {
-				if (this.sceneName == 'intro') {
-					await this.goScene('chant');
-					window.onkeydown = () => null;
-				} else {
-					window.onkeydown = () => null;
-				}
-			}
-		};
+		const styleEx = new PIXI.TextStyle({
+			align: 'center',
+			fill: 0x1b4943,
+			fontFamily: 'minigate Bold ver2',
+			fontStyle: 'italic',
+			fontWeight: '',
+			fontSize: 64,
+			padding: 10,
+		});
+
+		const tTitleTxt2 = new PIXI.Text('!');
+		tTitleTxt2.style = styleEx;
+		// this.tempTxt.text = 'ALPHABET';
+		tTitleTxt2.anchor.set(0.5, 0.5);
+		// tTitleTxt2.position.set(App.Handle.appWidth / 2 200, -tTitleTxt2.height);
+		tTitleTxt2.position.set(
+			App.Handle.appWidth / 2 + tTitleTxt.width / 2 + 5,
+			0,
+		);
+		// this.addChild(this.tempTxt);
+		App.Handle.addChilds(this.tTitleCt, tTitleTxt2);
+
+		this.tTitleCt.position.set(0, -100);
+		App.Handle.addChilds(this, this.tTitleCt);
+
+		const subjectStyle = new PIXI.TextStyle({
+			align: 'center',
+			fill: 0xffffff,
+			fontFamily: 'minigate Bold ver2',
+			fontWeight: 'normal',
+			fontSize: 126,
+			padding: 10,
+		});
+		this.subjectTxt = new PIXI.Text(Config.subjectName);
+		this.subjectTxt.style = subjectStyle;
+		this.subjectTxt.anchor.set(0.5);
+		this.subjectTxt.position.set(App.Handle.appWidth / 2, -100);
+		App.Handle.addChilds(this, this.subjectTxt, true);
 	}
-
 	async onStart() {
-		const bgm = ResourceManager.Handle.getCommon('intro_bgm.mp3').sound;
-		bgm.play();
-		bgm.volume = 0;
-		gsap.to(bgm, { volume: 1, duration: 4 });
-
-		gsap.delayedCall(bgm.duration, async () => {
-			await this.goScene('chant');
-		});
-		await this.playChaMotion();
-		this.clickCha();
-		await this.readAlphabet();
-		this.clickAlphabet();
+		await this.preLoadSound();
+		this.showMotion();
 	}
 
-	// 생성 함수============================================
-	private createBG(): Promise<void> {
-		return new Promise<void>(resolve => {
-			const bg = new PIXI.Graphics();
-			bg.beginFill(0x0080db, 1);
-			bg.drawRect(0, 0, config.width, config.height);
-			bg.endFill();
-			bg.alpha = 0;
-			this.addChild(bg);
-			gsap
-				.to(bg, { alpha: 1, duration: 0.5 })
-				.eventCallback('onComplete', () => {
-					resolve();
-				});
-		});
-	}
-
-	private createTxt(): Promise<void> {
-		return new Promise<void>(resolve => {
-			const phonicsText = new PIXI.Text('phonics', {
-				fontFamily: 'minigate Bold ver2',
-				fontSize: 64,
-				fill: 0x023c65,
-				padding: 20,
-			});
-			phonicsText.roundPixels = true;
-			phonicsText.pivot.set(phonicsText.width / 2, phonicsText.height / 2);
-			phonicsText.position.set(config.width / 2, 128);
-			phonicsText.alpha = 0;
-
-			const title = gameData[`day${Config.subjectNum}`].title;
-			this.mTitle = new PIXI.Text(title, {
-				fontFamily: 'minigate Bold ver2',
-				fontSize: 126,
-				fill: 0xffffff,
-				padding: 20,
-			});
-			this.mTitle.pivot.set(this.mTitle.width / 2, this.mTitle.height / 2);
-			this.mTitle.roundPixels = true;
-			this.mTitle.position.set(config.width / 2, 290);
-			this.mTitle.scale.set(6);
-			this.mTitle.alpha = 0;
-
-			this.addChild(phonicsText, this.mTitle);
-
-			gsap.to(phonicsText, { alpha: 1, duration: 0.25 });
-			gsap.to(this.mTitle, { alpha: 1, duration: 0.25 }).delay(0.3);
-			gsap.to(this.mTitle.scale, { x: 1, y: 1, duration: 0.25 }).delay(0.25);
-			resolve();
-		});
-	}
-
-	private createCha(): Promise<void> {
-		return new Promise<void>(resolve => {
-			this.mCharacterAry = [];
-			this.mShadowAry = [];
-
-			for (let i = 1; i <= 6; i++) {
-				const shadow = new PIXI.Sprite(
-					ResourceManager.Handle.getCommon(`intro_cha${i}_shadow.png`).texture,
-				);
-				this.addChild(shadow);
-				shadow.position.set(shadowPos[i - 1].x, shadowPos[i - 1].y);
-				shadow.anchor.set(0.5);
-				shadow.scale.set(0);
-				shadow.alpha = 0;
-				this.mShadowAry.push(shadow);
-			}
-			for (let i = 1; i <= 6; i++) {
-				const cha = new PIXI.Sprite(
-					ResourceManager.Handle.getCommon(`intro_cha${i}.png`).texture,
-				);
-				this.addChild(cha);
-				cha.alpha = 0;
-				cha.anchor.set(0.5);
-				cha.position.set(chaPos[i - 1].x, chaPos[i - 1].y - 200);
-				this.mCharacterAry.push(cha);
-			}
-			resolve();
-		});
-	}
-
-	// 실행 함수============================================
-	private readAlphabet(): Promise<void> {
-		return new Promise<void>(resolve => {
-			let titleSnd = ResourceManager.Handle.getCommon('title_phonics.mp3')
-				.sound;
-			titleSnd.play();
-			gsap.delayedCall(titleSnd.duration, () => {
-				titleSnd = null;
-				window['currentAlphabet'].play();
-				gsap
-					.to(this.mTitle.scale, { x: 1.2, y: 1.2, ease: 'back' })
-					.yoyo(true)
-					.repeat(1)
-					.eventCallback('onComplete', () => {
-						resolve();
-					});
-			});
-		});
-	}
-
-	// 캐릭터 위에서 떨어지는 모션/
-	private playChaMotion(): Promise<void> {
-		return new Promise<void>(resolve => {
-			const rAry = [0, 1, 2, 3, 4, 5];
-			const random = shuffleArray(rAry);
-
-			for (let i = 0; i < 6; i++) {
-				const index = random[i];
-				gsap
-					.to(this.mCharacterAry[index], {
-						alpha: 1,
-						y: chaPos[index].y,
-						duration: 0.5,
-						ease: 'bounce',
-					})
-					.delay(i / 2)
-					.eventCallback('onComplete', () => {
-						i == 5 ? resolve() : null;
-					});
-			}
-			for (let i = 0; i < 6; i++) {
-				const index = random[i];
-				gsap
-					.to(this.mShadowAry[index].scale, {
-						x: 1,
-						y: 1,
-						duration: 0.8,
-						ease: 'bounce',
-					})
-					.delay(i / 2);
-
-				gsap
-					.to(this.mShadowAry[index], {
-						alpha: 1,
-						duration: 0.5,
-						ease: 'bounce',
-					})
-					.delay(i / 2 - 0.2);
-			}
-		});
-	}
-
-	private clickAlphabet() {
-		this.mTitle.interactive = true;
-		this.mTitle.buttonMode = true;
-		this.mTitle.on('pointertap', async () => {
-			window['clickSnd'].play();
-			this.mTitle.interactive = false;
-			this.mTitle.buttonMode = false;
-			await this.readAlphabet();
-			this.mTitle.interactive = true;
-			this.mTitle.buttonMode = true;
-		});
-	}
-
-	private clickCha() {
-		for (let i = 1; i <= 6; i++) {
-			const cha = this.mCharacterAry[i - 1];
-			cha.interactive = true;
-			cha.buttonMode = true;
-
-			cha.on('pointertap', () => {
-				window['clickSnd'].play();
-				gsap.killTweensOf(cha);
-				gsap.killTweensOf(this.mShadowAry[i - 1].scale);
-
-				cha.y = chaPos[i - 1].y;
-				this.mShadowAry[i - 1].scale.set(1);
-
-				cha.interactive = false;
-				cha.buttonMode = false;
-				gsap
-					.to(cha, { y: cha.y - 100, duration: 0.5 })
-					.yoyo(true)
-					.repeat(1)
-					.eventCallback('onComplete', () => {
-						cha.interactive = true;
-						cha.buttonMode = true;
-					});
-				gsap
-					.to(this.mShadowAry[i - 1].scale, { x: 0.6, y: 0.6, duration: 0.5 })
-					.yoyo(true)
-					.repeat(1);
-			});
+	//사운드 미리 불러오기를 나타낸다.
+	private async preLoadSound() {
+		if (window['Android']) {
+			if (App.Handle.loading === null || App.Handle.loading === undefined)
+				window['Android'].showLoading();
 		}
+		const tPreSnds = [];
+		tPreSnds.push([Rsc.viewer, 'common', 'intro_bgm.mp3', false, true]);
+		// tPreSnds.push([Rsc.viewer, 'common', 'activity_bgm.mp3', true]);
+		await SoundManager.Handle.loadPreSounds(tPreSnds);
+
+		const tSnds = [];
+		tSnds.push([Rsc.viewer, 'common', 'button_click.mp3']);
+		tSnds.push([Rsc.viewer, this.name, 'title_phonics_reading.mp3']);
+		tSnds.push([Rsc.product, 'common', `pr_in_${Config.subjectNum}.mp3`]);
+		await SoundManager.Handle.loadSounds(tSnds);
+
+		if (window['Android']) {
+			if (App.Handle.loading === null || App.Handle.loading === undefined) {
+				window['Android'].hideLoading();
+			} else {
+				App.Handle.loading.remove();
+				App.Handle.loading.destroy();
+				App.Handle.loading = null;
+			}
+		} // 아이스크림 기기 내장 함수 호출
+	}
+
+	private async showMotion() {
+		// pixiSound.stopAll();
+		App.Handle.removeMotionDelay();
+
+		await App.Handle.tweenMotion('delay', 0.5);
+		gsap.to(this.tTitleCt, { y: 127.5, duration: 1.5, ease: 'bounce.out' });
+		await App.Handle.tweenMotion('delay', 0.5);
+		SoundManager.Handle.getSound(this.name, 'title_phonics_reading.mp3').play();
+
+		const tDuration = SoundManager.Handle.getSound(
+			this.name,
+			'title_phonics_reading.mp3',
+		).duration;
+
+		await App.Handle.tweenMotion('delay', tDuration > 1.5 ? tDuration : 1.5);
+
+		gsap.to(this.subjectTxt, { y: 290, duration: 1.5, ease: 'bounce.out' });
+		await App.Handle.tweenMotion('delay', 0.5);
+		SoundManager.Handle.getSound(
+			'common',
+			`pr_in_${Config.subjectNum}.mp3`,
+		).play();
+
+		const tSubDuration = SoundManager.Handle.getSound(
+			'common',
+			`pr_in_${Config.subjectNum}.mp3`,
+		).duration;
+
+		await App.Handle.tweenMotion(
+			'delay',
+			tSubDuration > 0.5 ? tSubDuration : 0.5,
+		);
+
+		const tCharacterCt = new PIXI.Container();
+		const tCharacterShadowCt = new PIXI.Container();
+		const tCharPos = [
+			[137, 482.5],
+			[287.5, 528],
+			[488, 557.5],
+			[737.5, 522.5],
+			[942, 535],
+			[1132, 452],
+		];
+		const tCharShadowPos = [
+			[136.5, 561],
+			[280.5, 653],
+			[467.5, 709.5],
+			[745.5, 705.5],
+			[965.5, 653],
+			[1098.5, 561],
+		];
+
+		for (let i = 0; i < 6; i++) {
+			const tChaSpr = new PIXI.Sprite(
+				this.mViewSheet.textures[`char${i + 1}.png`],
+			);
+
+			tChaSpr.anchor.set(0.5);
+			tChaSpr.position.set(tCharPos[i][0], tCharPos[i][1]);
+
+			const tChaShadowSpr = new PIXI.Sprite(
+				this.mViewSheet.textures[`char${i + 1}_shadow.png`],
+			);
+			tChaShadowSpr.anchor.set(0.5);
+			tChaShadowSpr.position.set(tCharShadowPos[i][0], tCharShadowPos[i][1]);
+
+			App.Handle.addChilds(tCharacterShadowCt, tChaShadowSpr);
+			App.Handle.addChilds(tCharacterCt, tChaSpr);
+		}
+
+		App.Handle.addChilds(this, tCharacterShadowCt);
+		App.Handle.addChilds(this, tCharacterCt);
+
+		const tPosY = tCharacterCt.position.y;
+		tCharacterCt.position.y = tPosY + 100;
+		tCharacterCt.alpha = 0;
+		gsap.to(tCharacterCt, { y: tPosY, duration: 1, ease: 'back.out(1.7)' });
+		gsap.to(tCharacterCt, { alpha: 1, duration: 1 });
+
+		tCharacterShadowCt.alpha = 0;
+		gsap.to(tCharacterShadowCt, { alpha: 1, duration: 1 });
+		// const tCharacter = new PIXI.Sprite(
+		// 	ViewerRscManager.Handle.getResource(this.name, 'characters.png').texture,
+		// );
+		// tCharacter.anchor.set(0.5);
+		// tCharacter.position.set(Config.width / 2, 900);
+		// App.Handle.addChilds(this, tCharacter);
+
+		// gsap.to(tCharacter, { y: 600, duration: 0.5 });
+
+		await App.Handle.tweenMotion('delay', 1);
+		this.nextMode();
+	}
+
+	private getDataInfo() {
+		console.log(this.name);
+		// const tData = ProductRscManager.Handle.getResource( this.name, 'data') as any;
+		// console.log(tData);
+	}
+
+	private nextMode() {
+		gsap.delayedCall(0.5, () => {
+			// this.destroy();
+			this.dispatchEvent(EventType.ReceiveData, this.name);
+		});
+	}
+
+	private destroyGsapAni() {
+		gsap.killTweensOf(this.tTitleCt);
+		gsap.killTweensOf(this.aniBigAlphabet);
+		gsap.killTweensOf(this.aniSmallAlphabet);
+	}
+
+	async onEnd() {
+		// console.log('Intro onEnd');
+		SoundManager.Handle.removeAll();
+		App.Handle.removeMotionDelay();
+		this.destroyGsapAni();
+		this.closeBtn?.removeCustomEventListener(EventType.ButtonUp);
+		await App.Handle.removeChilds();
 	}
 }

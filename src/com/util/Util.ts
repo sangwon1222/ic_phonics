@@ -1,9 +1,8 @@
 import WebFont from 'webfontloader';
 import Config from './Config';
 import AlphabetConf from '../../Alphabet/AlphabetConf';
-import PhonicsReadingConf from '../../phonicsreading/PhonicsConf';
+import PhonicsConf from '../../phonics/PhonicsConf';
 import WordsConf from '../../sightwords/SightWordsConf';
-import PhonicsConf from '../../phonics/core/PhonicsConf';
 
 // Font 로딩을 나타낸다.
 export function _fontLoading(): Promise<void> {
@@ -14,10 +13,10 @@ export function _fontLoading(): Promise<void> {
 					// 'minigate',
 					// 'minigate Bold',
 					'minigate Bold ver2',
-					'NanumSquareRound',
 					// 'BPreplay',
 					// 'BPreplay:i8',
 					// 'NanumGothic',
+					'NanumSquareRound',
 				],
 				// urls: [`../fonts/fonts.css`],
 				urls: [`${Config.restAPIProd}fonts/fonts.css`],
@@ -65,9 +64,6 @@ export function getSubjectIdx(tApb: string): number {
 			result = AlphabetConf.subjectData.indexOf(tApb.toUpperCase()) + 1;
 			break;
 		case 'ph_reading':
-			result = PhonicsReadingConf.subjectData.indexOf(tApb.toUpperCase()) + 1;
-			break;
-		case 'phonics':
 			result = PhonicsConf.subjectData.indexOf(tApb.toUpperCase()) + 1;
 			break;
 		case 'words':
@@ -88,9 +84,6 @@ export function getSubjectStr(tIdx: number): string {
 			tDataAry = AlphabetConf.subjectData;
 			break;
 		case 'ph_reading':
-			tDataAry = PhonicsReadingConf.subjectData;
-			break;
-		case 'phonics':
 			tDataAry = PhonicsConf.subjectData;
 			break;
 		case 'words':

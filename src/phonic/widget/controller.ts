@@ -288,6 +288,9 @@ export class PrevNextBtn extends PIXI.Container {
 	}
 
 	disableBtn(btn: string) {
+		if (Config.isFreeStudy) {
+			return;
+		}
 		if (btn == 'prev') {
 			this.mPrevBtn.alpha = 0.6;
 			this.mPrevBtn.interactive = false;
@@ -302,12 +305,14 @@ export class PrevNextBtn extends PIXI.Container {
 
 	// 게임이나 모듈 완료시 다음 버튼 깜빡이는 모션
 	blintNextBtn(flag: boolean) {
+		if (Config.isFreeStudy) {
+			return;
+		}
+
 		gsap.killTweensOf(this.mNextBtn);
 		this.mNextBtn.alpha = 1;
 
-		if (!Config.isFreeStudy) {
-			this.mNextBtn.interactive = true;
-		}
+		this.mNextBtn.interactive = true;
 
 		if (flag) {
 			gsap

@@ -78,6 +78,16 @@ export class Home extends SceneBase {
 			btn.once('pointerdown', () => {
 				btn.tint = 0x0080db;
 				Config.subjectNum = i + 1;
+				Config.subjectName = gameData[`day${Config.subjectNum}`].title;
+
+				console.groupCollapsed(
+					`%c change_subject`,
+					'background:#000; color:#fff; padding:2px;',
+				);
+				console.log(`subjectNum => [ ${Config.subjectNum} ]`);
+				console.log(`subjectName => [ ${Config.subjectName} ]`);
+				console.groupEnd();
+
 				window['clickSnd'].play();
 				gsap.delayedCall(window['clickSnd'].duration, async () => {
 					await this.goScene('intro');

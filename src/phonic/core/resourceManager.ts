@@ -1,4 +1,4 @@
-import { PhonicsApp } from '@/phonics/core/app';
+import { PhonicsApp } from '@/phonic/core/app';
 import Config from '../../com/util/Config';
 
 export interface ResourceTable {
@@ -28,8 +28,8 @@ export class ResourceManager {
 	private mProduct: {};
 
 	constructor() {
-		this.mURLRoot = Config.resource;
-		// this.mURLRoot = Config.restAPIProd;
+		// this.mURLRoot = Config.restAPI;
+		this.mURLRoot = `${Config.restAPIProd}ps_phonics/`;
 		this.mCommon = {};
 		this.mViewer = {};
 		this.mProduct = {};

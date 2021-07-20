@@ -1,14 +1,14 @@
 import * as PIXI from 'pixi.js';
-import { ResourceManager } from '@/phonics/core/resourceManager';
+import { ResourceManager } from '@/phonic/core/resourceManager';
 import gsap from 'gsap/all';
 import { GameModule } from './gameModule';
-import { gameData } from '@/phonics/core/resource/product/gameData';
+import { gameData } from '@/phonic/core/resource/product/gameData';
 import { shuffleArray } from '@/com/util/Util';
 import { Game } from './game';
 import Config from '@/com/util/Config';
-import { debugLine } from '@/phonics/utill/gameUtil';
-import { StarBar } from '@/phonics/widget/star';
-import { Eop } from '@/phonics/widget/eop';
+import { debugLine } from '@/phonic/utill/gameUtil';
+import { StarBar } from '@/phonic/widget/star';
+import { Eop } from '@/phonic/widget/eop';
 import pixiSound from 'pixi-sound';
 
 export class Bag extends PIXI.Sprite {
@@ -17,6 +17,7 @@ export class Bag extends PIXI.Sprite {
 		return this.mQuizImg;
 	}
 
+	private mCompleteText: PIXI.Text;
 	get text(): string {
 		return this.mText;
 	}
@@ -38,7 +39,18 @@ export class Bag extends PIXI.Sprite {
 		).texture;
 		this.mQuizImg.anchor.set(0.5);
 		this.mQuizImg.position.set(6, 24);
-		this.addChild(this.mQuizImg);
+
+		this.mCompleteText = new PIXI.Text(this.mText, {
+			fill: 0x333333,
+			fontSize: 60,
+			fontFamily: 'minigate Bold ver2',
+			padding: 10,
+		});
+		this.addChild(this.mQuizImg, this.mCompleteText);
+
+		this.mCompleteText.anchor.set(0.5, 0);
+		this.mCompleteText.position.set(6, -6);
+		this.mCompleteText.scale.x = 0;
 
 		this.anchor.set(0.5);
 
@@ -55,6 +67,15 @@ export class Bag extends PIXI.Sprite {
 	async reset(quizText: string) {
 		gsap.killTweensOf(this.mQuizImg);
 		gsap.killTweensOf(this.mQuizImg.scale);
+
+		this.mCompleteText.text = quizText;
+		if (quizText.length > 6) {
+			this.mCompleteText.style.fontSize = 40;
+		} else {
+			this.mCompleteText.style.fontSize = 60;
+		}
+		this.mCompleteText.anchor.set(0.5, 0);
+		this.mCompleteText.scale.x = 0;
 
 		this.mEndInteraction = false;
 		this.tint = 0xffffff;
@@ -114,25 +135,28 @@ export class Bag extends PIXI.Sprite {
 			let snd = ResourceManager.Handle.getCommon(
 				`${Config.subjectNum}_${this.mText}.mp3`,
 			).sound;
+
 			gsap
 				.to(this.scale, { x: 1.1, y: 1.1, duration: 0.25 })
 				.repeat(3)
 				.yoyo(true)
 				.eventCallback('onComplete', () => {
 					snd.play();
-
 					gsap
 						.to(this.mQuizImg.scale, {
-							x: 1.1,
-							y: 1.1,
-							duration: snd.duration / 3,
+							x: 0,
+							duration: snd.duration / 4,
 						})
-						.yoyo(true)
-						.repeat(3)
 						.eventCallback('onComplete', () => {
-							snd = null;
-							resolve();
+							gsap.to(this.mCompleteText.scale, {
+								x: 1,
+								duration: snd.duration / 4,
+							});
 						});
+					gsap.delayedCall(snd.duration, () => {
+						snd = null;
+						resolve();
+					});
 				});
 		});
 	}
@@ -142,6 +166,15 @@ export class Bag extends PIXI.Sprite {
 			ResourceManager.Handle.getCommon('game_wrong.mp3').sound.play();
 			this.tint = 0x6c6c6c;
 			this.mQuizImg.tint = 0x6c6c6c;
+
+			// console.log(this.mVariationIdx);
+			// if (this.mVariationIdx == 2) {
+			gsap
+				.to(this, { y: this.y + 10, duration: 0.25 })
+				.repeat(3)
+				.yoyo(true);
+			// }
+
 			gsap
 				.to(this.scale, { x: 0.9, y: 0.9, duration: 0.25 })
 				.repeat(3)
@@ -185,10 +218,17 @@ export class Game2 extends GameModule {
 		Config.currentIdx = 1;
 
 		this.mVariationIdx = Math.ceil(Math.random() * 3);
-		console.log(
-			`%c GAME2 => ${this.mVariationIdx}번째 베리에이션`,
-			'border:2px blue solid;',
+		// this.mVariationIdx = 2;
+		console.group(
+			`%c Game__2 _variation :`,
+			'color:#fff;background:#000;font-weight:800;padding-right:20px;',
 		);
+		console.log(
+			`[%c now: ${this.mVariationIdx}`,
+			'color: red; font-weight:800;',
+			']/ total: 3 ',
+		);
+		console.groupEnd();
 
 		await (this.parent.parent as Game).controller.reset();
 
@@ -291,8 +331,7 @@ export class Game2 extends GameModule {
 				).texture,
 			);
 			door.interactive = true;
-			door.position.set(0, 294);
-			door.zIndex = 2;
+			door.position.set(0, 260);
 
 			this.sortableChildren = true;
 			door.zIndex = 3;
@@ -311,14 +350,9 @@ export class Game2 extends GameModule {
 								this.mLineAry[0].x + this.mLineAry[0].width + 60)
 						: (this.mLineAry[1].x -= this.mSpeed);
 
-					// for (const bag of this.mBagAry) {
-					// 	bag.x <= -bag.width
-					// 		? (bag.x = Config.width + 160)
-					// 		: (bag.x -= this.mSpeed);
-					// }
 					for (const bag of this.mBagAry) {
-						bag.x <= -bag.width / 3
-							? (bag.x = Config.width + 168)
+						bag.x <= -90
+							? (bag.x = Config.width + bag.width / 2)
 							: (bag.x -= this.mSpeed);
 					}
 				}
@@ -341,7 +375,7 @@ export class Game2 extends GameModule {
 			const randomBagText = shuffleArray(data.slice(0));
 
 			// let offsetX = Config.width;
-			let offsetX = 30;
+			let offsetX = 160;
 			for (let i = 0; i < bagCount; i++) {
 				const bag = new Bag(
 					`${randomBagText[i % 4]}.png`,
@@ -354,8 +388,7 @@ export class Game2 extends GameModule {
 				bag.zIndex = 2;
 
 				bag.position.set(offsetX, 400);
-				// offsetX += bag.width + 160;
-				offsetX += bag.width + 120;
+				offsetX += bag.width + 100;
 
 				bag.onPointertap = async () => {
 					if (bag.x < 76 || bag.x > 1134) {
@@ -521,6 +554,22 @@ export class Game2 extends GameModule {
 	}
 
 	async deleteMemory() {
-		if (window['ticker']) gsap.ticker.remove(window['ticker']);
+		if (window['ticker']) {
+			gsap.ticker.remove(window['ticker']);
+		}
+		window['ticker'] = null;
+
+		this.removeChildren();
+		this.mConveyor = null;
+		this.mLineAry = null;
+		this.mBagAry = null;
+		this.mQuizBoard = null;
+		this.mQuizBoardText = null;
+		this.mQuizData = null;
+		this.mModuleStep = null;
+		this.mStarBar = null;
+		this.mSpeed = null;
+		this.mEop = null;
+		this.mVariationIdx = null;
 	}
 }

@@ -37,7 +37,7 @@ export enum SceneNum {
 	ActivityOne,
 	ActivityTwo,
 	Outro,
-	SelectScene = 0,
+	SelectScene,
 }
 
 export enum NaviBtnName {

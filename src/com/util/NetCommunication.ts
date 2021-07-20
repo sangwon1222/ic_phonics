@@ -11,7 +11,7 @@ import { App } from '../core/App';
 import * as Util from './Util';
 import Config from '@/com/util/Config';
 import AlphabetConf from '../../Alphabet/AlphabetConf';
-import PhonicsConf from '../../phonicsreading/PhonicsConf';
+import PhonicsConf from '../../phonics/PhonicsConf';
 import SightWordsConf from '../../sightwords/SightWordsConf';
 
 export class NetCommunication extends ObjectBase {

@@ -21,11 +21,24 @@ import { Game } from '../scene/game/game';
 import { Controller } from '../widget/controller';
 import { isMobilePlatform } from '../utill/gameUtil';
 
-import AppConf from '@/phonics/core/PhonicsConf';
+import AppConf from '@/phonic/core/PhonicsConf';
 
 //Net Module
 import { NetCommunication } from '@/com/util/NetCommunication';
 import { XCaliperApi } from '@/com/util/XCaliperApi';
+import { gameData } from './resource/product/gameData';
+
+//나가기 팝업에서 Yes 클릭시 아이스크림 기기에서 나가기를 나타낸다.
+window['popUpYes'] = async function() {
+	if (!Config.isFreeStudy) {
+		await this.netModule.leaveActivity(Config.currentMode, Config.currentIdx);
+		await this.netModule.endStudyData();
+		await this.netModule.saveCache();
+		await this.netModule.sendStudyData();
+	}
+	await window['phonics_xCaliper'].AssignablePaused();
+	window['Android'].exit();
+};
 
 export class PhonicsApp extends PIXI.Application {
 	// singleton
@@ -57,8 +70,6 @@ export class PhonicsApp extends PIXI.Application {
 
 	private mSceneArray: Array<SceneBase>;
 
-	private mClickEffect: PIXI.spine.Spine;
-
 	constructor(canvas: HTMLCanvasElement, private mPrevScene: string) {
 		super({
 			width: Config.width,
@@ -73,6 +84,10 @@ export class PhonicsApp extends PIXI.Application {
 	}
 
 	async onInit() {
+		await this.resetTicker();
+
+		pixiSound.context.paused = false;
+		await pixiSound.context.refresh();
 		this.mSceneStage = new PIXI.Container();
 		this.mModalStage = new PIXI.Container();
 		this.stage.addChild(this.mSceneStage, this.mModalStage);
@@ -96,22 +111,6 @@ export class PhonicsApp extends PIXI.Application {
 
 		if (!this.netModule) this.netModule = new NetCommunication();
 		window['phonics_xCaliper'] = new XCaliperApi();
-		//나가기 팝업에서 Yes 클릭시 아이스크림 기기에서 나가기를 나타낸다.
-		window['popUpYes'] = async function() {
-			if (!Config.isFreeStudy) {
-				await this.netModule.leaveActivity(
-					Config.currentMode,
-					Config.currentIdx,
-				);
-				await this.netModule.endStudyData();
-				await this.netModule.saveCache();
-				await this.netModule.sendStudyData();
-			}
-			await window['phonics_xCaliper'].AssignablePaused();
-			window['Android'].exit();
-		};
-
-		pixiSound.context.refresh();
 
 		await this._fontLoading();
 		await ResourceManager.Handle.loadCommonResource(Common);
@@ -135,7 +134,12 @@ export class PhonicsApp extends PIXI.Application {
 		// PIXI.settings.TARGET_FPMS = 0.03;
 		Config.mobile = isMobilePlatform();
 
-		document.onvisibilitychange = async () => {
+		// 기기 ON -> OFF 시 처리를 나타낸다.
+		document.removeEventListener(
+			'visibilitychange',
+			window['app_visibilitychange'],
+		);
+		document.addEventListener('visibilitychange', async () => {
 			/**화면이 보일때 */
 			if (document.hidden == false) {
 				pixiSound.resumeAll();
@@ -157,7 +161,7 @@ export class PhonicsApp extends PIXI.Application {
 				}
 				// window['bgm'] ? (window['bgm'].volume = 0) : null;
 			}
-		};
+		});
 
 		this.mController = new Controller();
 		this.mModalStage.addChild(this.mController);
@@ -190,29 +194,6 @@ export class PhonicsApp extends PIXI.Application {
 		// }
 
 		await this.goScene(this.mPrevScene);
-
-		this.mClickEffect = new PIXI.spine.Spine(
-			ResourceManager.Handle.getCommon('click_effect.json').spineData,
-		);
-		this.mClickEffect.visible = false;
-		this.stage.addChild(this.mClickEffect);
-		this.mClickEffect.zIndex = 3;
-
-		this.stage.interactive = true;
-		let hideFuction = null;
-		this.stage.on('pointertap', (evt: PIXI.InteractionEvent) => {
-			if (hideFuction) {
-				hideFuction.kill();
-				hideFuction = null;
-			}
-			this.mClickEffect.position.set(evt.data.global.x, evt.data.global.y);
-			this.mClickEffect.visible = true;
-			this.mClickEffect.state.setAnimation(0, 'animation', false);
-
-			hideFuction = gsap.delayedCall(1, () => {
-				this.mClickEffect.visible = false;
-			});
-		});
 	}
 
 	controllerVisible(flag: boolean) {
@@ -225,8 +206,8 @@ export class PhonicsApp extends PIXI.Application {
 				custom: {
 					// families: ["TmoneyRoundWindExtraBold", "TmoneyRoundWindRegular"],
 					families: ['minigate Bold ver2', 'NanumSquareRound'],
-
-					urls: [`${Config.resource}viewer/fonts/fonts.css`],
+					urls: [`${Config.restAPIProd}ps_phonics/viewer/fonts/fonts.css`],
+					// urls: [`https://imestudy.smartdoodle.net/ic_phonics/rsc/viewer/fonts/fonts.css`],
 				},
 				timeout: 2000,
 				active: () => {
@@ -274,7 +255,7 @@ export class PhonicsApp extends PIXI.Application {
 			window['bgm'] = document.createElement('audio');
 			window[
 				'bgm'
-			].src = `${Config.resource}viewer/sounds/${sceneName}_bgm.mp3`;
+			].src = `${Config.restAPIProd}ps_phonics/viewer/sounds/${sceneName}_bgm.mp3`;
 			window['bgm'].play();
 			window['bgm'].loop = true;
 			window['bgm'].volume = 1;
@@ -347,22 +328,25 @@ export class PhonicsApp extends PIXI.Application {
 			Config.devMode
 		) {
 			Config.subjectName = Util.getSubjectStr(Config.subjectNum);
-			console.log(
-				`subjectName  =>  %c  ${Config.subjectName}`,
-				'color:green; ',
+			if (Config.subjectName == undefined) {
+				Config.subjectName = gameData[`day${Config.subjectNum}`].title;
+			}
+			console.group(
+				`%c 시작 전 세팅값 `,
+				'background:#000; color:#fff;padding:2px;',
 			);
-			// App.Handle.setAlphabet = Config.subjectName;
+			console.log(
+				'subjectNum  =>' + `%c [ ${Config.subjectNum} ]`,
+				'color:green; font-weight:800;',
+			);
+			console.log(
+				'subjectName  =>' + `%c [ ${Config.subjectName} ]`,
+				'color:green; font-weight:800;',
+			);
+			console.groupEnd();
 
 			Config.currentMode = 0;
 			Config.currentIdx = 0;
-
-			// if (SceneNum.SelectScene === 0) {
-			// 	this.mLastPlayNum = this.getIdxNum(this.mCurrentIdx) + 1;
-			// } else {
-			// 	this.mLastPlayNum = this.getIdxNum(this.mCurrentIdx);
-			// }
-
-			// this.setModeData(this.mLastPlayNum);
 			return;
 		}
 
@@ -386,6 +370,7 @@ export class PhonicsApp extends PIXI.Application {
 		} else {
 			console.log(this.netModule.getLastVisit());
 			const tActAry = this.netModule.getLastVisit();
+			console.error(tActAry);
 			//마지막 학습 완료후의 다음 학습모드로 이동한다.
 			switch (tActAry[2]) {
 				case 1:
@@ -407,6 +392,8 @@ export class PhonicsApp extends PIXI.Application {
 			// 	this.mLastPlayNum = this.getIdxNum(this.mCurrentIdx);
 			// }
 
+			if (tActAry[2] === 2) Config.isFreeStudy = true;
+
 			//오늘의 학습을 모두 완료 했을때 모든 메뉴 버튼 활성화를 나타낸다.
 			// if (tActAry[2] === 2) this.mLastPlayNum = 10;
 			// this.setModeData(this.mLastPlayNum);
@@ -418,6 +405,7 @@ export class PhonicsApp extends PIXI.Application {
 			if (window['ticker']) {
 				gsap.ticker.remove(window['ticker']);
 			}
+			window['ticker'] = null;
 			if (window['video']) {
 				window['video'].pause();
 				window['video'] = null;

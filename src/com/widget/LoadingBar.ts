@@ -15,26 +15,13 @@ export class LoadingBar extends ObjectBase {
 
 	constructor() {
 		super();
-		this.mLoader = new PIXI.Loader();
+
 		this.mBgNumAry = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 	}
 
 	async load() {
-		if (this.mLoader) {
-			PIXI.utils.clearTextureCache();
-			this.mLoader.destroy();
-			this.mLoader.reset();
-		}
-		// this.mLoader = new PIXI.Loader();
-		this.removeChildren();
-		const bg = new PIXI.Graphics();
-		bg.beginFill(0x333333, 0.8);
-		bg.drawRect(0, 0, Config.width, Config.height);
-		bg.endFill();
-		this.addChild(bg);
-
-		this.mLoaderName = `loadingbar0${Math.ceil(Math.random() * 5)}.json`;
-
+		this.mLoaderName = `loadingbar0${Math.floor(Math.random() * 5 + 1)}.json`;
+		this.mLoader = new PIXI.Loader();
 		await this.mLoader
 			.add(
 				'loading',
@@ -46,7 +33,10 @@ export class LoadingBar extends ObjectBase {
 	}
 
 	private create() {
-		if (!this.mLoader.resources[`loading`]) return;
+		console.log(this.mLoaderName);
+		console.log(
+			`${Config.restAPIProd}ps_${Config.appName}/viewer/common/spines/${this.mLoaderName}`,
+		);
 		this.mSheet = this.mLoader.resources[`loading`].spritesheet;
 
 		this.resetBgAry();
@@ -103,13 +93,8 @@ export class LoadingBar extends ObjectBase {
 		this.startTimeOut();
 	}
 
-	remove(): Promise<void> {
-		return new Promise<void>(resolve => {
-			this.mLoader.destroy();
-			this.mLoader.reset();
-			this.removeChildren();
-			// this.mLoader = null;
-			resolve();
-		});
+	remove() {
+		this.mLoader.destroy();
+		this.mLoader = null;
 	}
 }

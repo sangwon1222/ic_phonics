@@ -1,16 +1,16 @@
 import * as PIXI from 'pixi.js';
 import { SceneBase } from '../../core/sceneBase';
-import { ResourceManager } from '@/phonics/core/resourceManager';
+import { ResourceManager } from '@/phonic/core/resourceManager';
 import gsap from 'gsap/all';
-import { gameData } from '@/phonics/core/resource/product/gameData';
+import { gameData } from '@/phonic/core/resource/product/gameData';
 import Config from '@/com/util/Config';
-import { Btn } from '@/phonics/widget/btn';
+import { Btn } from '@/phonic/widget/btn';
 import { SoundModule } from './soundModule';
 import { Sound1 } from './soundModule1';
 import { Sound2 } from './soundModule2';
-import { Eop } from '@/phonics/widget/eop';
+import { Eop } from '@/phonic/widget/eop';
 import pixiSound from 'pixi-sound';
-import { PhonicsApp } from '@/phonics/core/app';
+import { PhonicsApp } from '@/phonic/core/app';
 
 // 씬 아래부분 숫자 scene index
 export class ProgressBar extends PIXI.Container {
@@ -45,9 +45,9 @@ export class ProgressBar extends PIXI.Container {
 				offsetX += step.width + 20;
 
 				// 스텝을 클릭했을때,
-				step.onPointerTap = async () => {
-					await (this.parent as Sound).changeModule(step.idx);
-				};
+				// step.onPointerTap = async () => {
+				// 	await (this.parent as Sound).changeModule(step.idx);
+				// };
 			}
 
 			this.pivot.set(this.width / 2, this.height / 2);
@@ -102,20 +102,9 @@ export class Sound extends SceneBase {
 		this.prevNextBtn.onClickPrev = async () => {
 			await this.prevModule();
 		};
-		// if (Config.isFreeStudy) {
 		this.prevNextBtn.onClickNext = async () => {
 			await this.clickNext();
 		};
-		// } else {
-		// 	this.prevNextBtn.onClickNext = async () => {
-		// 		const data = this.controller.checkAbleLabel()[2];
-		// 		console.log(data);
-		// 		if (data.played) {
-		// 			await this.goScene('game');
-		// 			// this.nextModule();
-		// 		}
-		// 	};
-		// }
 
 		this.resetBtn();
 
@@ -158,12 +147,6 @@ export class Sound extends SceneBase {
 				this.mCurrentGameIdx = 0;
 				this.goScene('game');
 			}
-
-			// const data = this.controller.checkAbleLabel()[2];
-			// console.log(data);
-			// if (data.played) {
-			// 	await this.goScene('game');
-			// }
 		}
 	}
 
@@ -210,7 +193,8 @@ export class Sound extends SceneBase {
 			return;
 		}
 
-		await pixiSound.stopAll();
+		pixiSound.stopAll();
+		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
 		await PhonicsApp.Handle.loddingFlag(true);
 
@@ -245,7 +229,8 @@ export class Sound extends SceneBase {
 			this.mEop = null;
 		}
 		if (window['ticker']) gsap.ticker.remove(window['ticker']);
-		await pixiSound.stopAll();
+		pixiSound.stopAll();
+		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
 
 		await PhonicsApp.Handle.loddingFlag(true);
@@ -276,7 +261,8 @@ export class Sound extends SceneBase {
 			this.removeChild(this.mEop);
 			this.mEop = null;
 		}
-		await pixiSound.stopAll();
+		pixiSound.stopAll();
+		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
 
 		await PhonicsApp.Handle.loddingFlag(true);
@@ -305,13 +291,13 @@ export class Sound extends SceneBase {
 	async endGame() {
 		await this.completedLabel('game');
 		this.blintBtn(true);
-		// window['ticker'] = null;
-		// await gsap.globalTimeline.clear();
-		// await this.goScene('game');
-		// if (!Config.isFreeStudy) {
-		// 	this.prevNextBtn.onClickNext = async () => await this.clickNext();
-		// 	console.log(this.prevNextBtn.onClickNext);
-		// }
-		// this.prevNextBtn.unLock();
+
+		pixiSound.stopAll();
+		await gsap.globalTimeline.clear();
+
+		if (window['ticker']) {
+			gsap.ticker.remove(window['ticker']);
+		}
+		window['ticker'] = null;
 	}
 }

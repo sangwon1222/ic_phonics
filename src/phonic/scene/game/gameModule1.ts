@@ -1,17 +1,17 @@
 import * as PIXI from 'pixi.js';
 import config from '@/com/util/Config';
-import { ResourceManager } from '@/phonics/core/resourceManager';
+import { ResourceManager } from '@/phonic/core/resourceManager';
 import gsap, { Power0 } from 'gsap/all';
 import { GameModule } from './gameModule';
-import { gameData } from '@/phonics/core/resource/product/gameData';
+import { gameData } from '@/phonic/core/resource/product/gameData';
 import { shuffleArray } from '@/com/util/Util';
 import { Game } from './game';
-import { Btn } from '@/phonics/widget/btn';
-import { debugLine } from '@/phonics/utill/gameUtil';
+import { Btn } from '@/phonic/widget/btn';
+import { debugLine } from '@/phonic/utill/gameUtil';
 import Config from '@/com/util/Config';
-import { Star, StarBar } from '@/phonics/widget/star';
+import { Star, StarBar } from '@/phonic/widget/star';
 import pixiSound from 'pixi-sound';
-import { Eop } from '@/phonics/widget/eop';
+import { Eop } from '@/phonic/widget/eop';
 
 // 0x995bd9
 const variation = [0xff8baf, 0xb56340, 0x73be46];
@@ -205,10 +205,17 @@ export class Game1 extends GameModule {
 		await pixiSound.resumeAll();
 
 		this.mVariationIdx = Math.ceil(Math.random() * 3);
-		console.log(
-			`%c GAME1 => ${this.mVariationIdx}번째 베리에이션`,
-			'border:2px red solid;',
+
+		console.group(
+			`%c Game_1 __variation :`,
+			'color:#fff;background:#000;font-weight:800;padding-right:20px;',
 		);
+		console.log(
+			`[%c now: ${this.mVariationIdx}`,
+			'color: red; font-weight:800;',
+			']/ total: 3 ',
+		);
+		console.groupEnd();
 
 		const images = [];
 		for (let i = 1; i <= 8; i++) {
@@ -624,6 +631,7 @@ export class Game1 extends GameModule {
 		againBtn.interactive = true;
 		againBtn.buttonMode = true;
 		againBtn.once('pointertap', async () => {
+			await this.deleteMemory();
 			this.mEndDimmed = null;
 			await this.onInit();
 			await this.onStart();
@@ -670,5 +678,28 @@ export class Game1 extends GameModule {
 		gsap.killTweensOf(this.mRocket);
 		gsap.killTweensOf(this.mRocketMask);
 		await this.destroyAffor();
+
+		if (window['ticker']) {
+			gsap.ticker.remove(window['ticker']);
+		}
+		window['ticker'] = null;
+
+		this.removeChildren();
+		this.mExamAry = null;
+		this.mCorrectCardAry = null;
+		this.mEndGameFlag = null;
+		this.mSpeakerBtn = null;
+
+		this.mRocketStage = null;
+		this.mRocket = null;
+		this.mRocketMask = null;
+		this.mEndDimmed = null;
+		this.mModuleStep = null;
+		this.mStarBar = null;
+		this.mAffordance = null;
+		this.mAfforSnd = null;
+		this.mTimeOver = null;
+		this.mVariationIdx = null;
+		this.mCompleteFlag = null;
 	}
 }
