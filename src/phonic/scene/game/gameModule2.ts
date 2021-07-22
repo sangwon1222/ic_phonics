@@ -24,12 +24,26 @@ export class Bag extends PIXI.Sprite {
 
 	private mEndInteraction: boolean;
 
+	// 가방이 활성화되는 공간에 있을때에 대한 플래그
+	// ex> 오른쪽에서 나타날때 이미지가 안보이면 비활성화. => ableSpaceFlag=true
+	// ex> 왼쪽으로 들어갈때 이미지가 안보이면 비활성화.=> ableSpaceFlag=true
+	private mAbleSpaceFlag: boolean;
+	get ableSpaceFlag() {
+		return this.mAbleSpaceFlag;
+	}
+	set ableSpaceFlag(v: boolean) {
+		this.mAbleSpaceFlag = v;
+	}
+
 	constructor(
 		private quizTexture: string,
 		private mText: string,
 		private mVariationIdx: number,
 	) {
 		super();
+
+		this.mAbleSpaceFlag = true;
+
 		this.texture = ResourceManager.Handle.getCommon(
 			`game2_carrier${this.mVariationIdx}.png`,
 		).texture;
@@ -40,12 +54,16 @@ export class Bag extends PIXI.Sprite {
 		this.mQuizImg.anchor.set(0.5);
 		this.mQuizImg.position.set(6, 24);
 
+		let font_size = 40;
+		this.mText.length >= 7 ? (font_size = 40) : (font_size = 60);
+
 		this.mCompleteText = new PIXI.Text(this.mText, {
 			fill: 0x333333,
-			fontSize: 60,
+			fontSize: font_size,
 			fontFamily: 'minigate Bold ver2',
 			padding: 10,
 		});
+
 		this.addChild(this.mQuizImg, this.mCompleteText);
 
 		this.mCompleteText.anchor.set(0.5, 0);
@@ -69,11 +87,9 @@ export class Bag extends PIXI.Sprite {
 		gsap.killTweensOf(this.mQuizImg.scale);
 
 		this.mCompleteText.text = quizText;
-		if (quizText.length > 6) {
-			this.mCompleteText.style.fontSize = 40;
-		} else {
-			this.mCompleteText.style.fontSize = 60;
-		}
+		quizText.length >= 7
+			? (this.mCompleteText.style.fontSize = 40)
+			: (this.mCompleteText.style.fontSize = 60);
 		this.mCompleteText.anchor.set(0.5, 0);
 		this.mCompleteText.scale.x = 0;
 
@@ -93,6 +109,12 @@ export class Bag extends PIXI.Sprite {
 
 		this.interactive = true;
 		this.buttonMode = true;
+
+		//클릭 가능 반경 밖이면 비활성화
+		if (this.x < 76 || this.x > 1134) {
+			this.ableSpaceFlag = false;
+			this.disable();
+		}
 	}
 
 	// 가방속 퀴즈이미지가 360도 돌면서 사라지고 나타난다.
@@ -188,6 +210,15 @@ export class Bag extends PIXI.Sprite {
 				});
 		});
 	}
+
+	disable() {
+		this.tint = 0x6c6c6c;
+		this.mQuizImg.tint = 0x6c6c6c;
+	}
+	able() {
+		this.tint = 0xffffff;
+		this.mQuizImg.tint = 0xffffff;
+	}
 }
 
 export class Game2 extends GameModule {
@@ -229,8 +260,6 @@ export class Game2 extends GameModule {
 			']/ total: 3 ',
 		);
 		console.groupEnd();
-
-		await (this.parent.parent as Game).controller.reset();
 
 		await pixiSound.resumeAll();
 		if (window['ticker']) gsap.ticker.remove(window['ticker']);
@@ -340,6 +369,7 @@ export class Game2 extends GameModule {
 			this.mSpeed = 1;
 			window['ticker'] = () => {
 				{
+					// ==========컨베이어 바닥 모션 이미지 이동==========
 					this.mLineAry[0].x < -1200
 						? (this.mLineAry[0].x =
 								this.mLineAry[1].x + this.mLineAry[1].width + 60)
@@ -349,12 +379,31 @@ export class Game2 extends GameModule {
 						? (this.mLineAry[1].x =
 								this.mLineAry[0].x + this.mLineAry[0].width + 60)
 						: (this.mLineAry[1].x -= this.mSpeed);
+					// ==========컨베이어 바닥 모션 이미지 이동==========
 
+					// ==========가방 이동 ↙
 					for (const bag of this.mBagAry) {
-						bag.x <= -90
-							? (bag.x = Config.width + bag.width / 2)
-							: (bag.x -= this.mSpeed);
+						// ==========컨베이어 출구로 나가면 다시 오른쪽에서 시작하도록==========
+						if (bag.x <= -90) {
+							bag.x = Config.width + bag.width / 2;
+						} else {
+							bag.x -= this.mSpeed;
+						}
+
+						// 클릭 가능 반경 밖이면 딤드
+						if (bag.x < 76 || bag.x > 1134) {
+							if (bag.ableSpaceFlag) {
+								bag.ableSpaceFlag = false;
+								bag.disable();
+							}
+						} else {
+							if (!bag.ableSpaceFlag) {
+								bag.ableSpaceFlag = true;
+								bag.able();
+							}
+						}
 					}
+					// ==========컨베이어 출구로 나가면 다시 오른쪽에서 시작하도록==========
 				}
 			};
 
@@ -391,7 +440,7 @@ export class Game2 extends GameModule {
 				offsetX += bag.width + 100;
 
 				bag.onPointertap = async () => {
-					if (bag.x < 76 || bag.x > 1134) {
+					if (!bag.ableSpaceFlag) {
 						return;
 					}
 					await this.waitingInteractive(false);

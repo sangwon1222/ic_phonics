@@ -22,6 +22,7 @@ export class SceneBase extends PIXI.Container {
 	constructor(sceneName: string) {
 		super();
 		this.mSceneName = sceneName;
+		// this.mSceneIndex = sceneIndex;
 	}
 
 	// 각 씬에서 씬에 필요한 리소스나 데이터를 준비한다.
@@ -70,32 +71,23 @@ export class SceneBase extends PIXI.Container {
 		});
 	}
 
+	// 버튼 초기화
 	resetBtn(): Promise<void> {
 		return new Promise<void>(resolve => {
-			// PhonicsApp.Handle.controller.prevNextBtn.onClickNext = async () => null;
-			// PhonicsApp.Handle.controller.prevNextBtn.onClickPrev = async () => null;
 			PhonicsApp.Handle.controller.reset();
 			resolve();
 		});
 	}
 
+	// 다음 버튼이 깜빡이는 효과
 	blintBtn(flag: boolean) {
 		PhonicsApp.Handle.controller.prevNextBtn.blintNextBtn(flag);
 	}
 
-	async completedLabel(sceanName: string) {
-		await PhonicsApp.Handle.controller.completedLabel(sceanName);
+	// 컨트롤러 상단 액티비티 라벨의 활성/비활성화
+	async completedLabel() {
+		await PhonicsApp.Handle.controller.completedLabel();
 	}
-
-	// // 각 액티비티에서  overwhite
-	// async prevGame() {
-	// 	//
-	// }
-
-	// // 각 액티비티에서  overwhite
-	// async nextGame() {
-	// 	//
-	// }
 
 	async onEnd() {
 		await gsap.globalTimeline.clear();

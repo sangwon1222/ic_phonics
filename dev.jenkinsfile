@@ -1,0 +1,87 @@
+import java.text.SimpleDateFormat
+
+def noti(title, color, msg = "") {
+    def nowTime = new Date().getTime() / 1000
+    sh """curl -X POST http://133.186.134.154:1058/services/T3SQN5UUA/BEYJF79JQ/yTwSGAJgdWZPT5CQ7rUgoApb \
+-H 'Content-Type: text/json; charset=utf-8' \
+-d @- << EOF
+{ "attachments": [{
+    "fallback": "${title}",
+    "color": "${color}",
+    "author_name": "DEV JENKINS",
+    "author_link": "https://dev-dist.home-learn.com/jenkins/",
+    "title": ":hammer_and_wrench: ${title} : 빌드번호 ${currentBuild.number}",
+    "title_link": "https://dev-dist.home-learn.com/jenkins/job/dev_littleengnuri/${currentBuild.number}/console",
+    "text" : "${msg}",
+    "ts" : ${nowTime}
+}]}
+EOF
+"""
+}
+
+def changeLogs() {
+    def dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm")
+    return currentBuild.changeSets.collectMany { it.items }
+            .collect { entry -> "${entry.author} | ${entry.msg} | ${dateFormat.format(new Date(entry.timestamp as long))}" }.join("\\n")
+}
+
+APPNAME = "개발 littleengnuri SPA"
+DEV_WEB = "172.16.40.34"
+ROTATE_SHELL = "littleengnuri-rotate-dev.sh"
+
+pipeline {
+    agent any
+    tools {
+        nodejs "nodejs8.12.0"
+    }
+    stages {
+        stage('Pre Actions') {
+            steps {
+                noti("${APPNAME} 배포 시작", "#17a2b8")
+            }
+        }
+        stage('Checkout') {
+            steps {
+                checkout([$class                           : 'GitSCM',
+                          branches                         : [[name: '*/dev']],
+                          doGenerateSubmoduleConfigurations: false,
+                          extensions                       : [],
+                          submoduleCfg                     : [],
+                          userRemoteConfigs                : [[credentialsId: 'a21cbf5b-1ea9-46ac-8851-6e91d7c6a34f',
+                                                               url          : 'http://gitlab.home-learn.com:8824/frontend/ice-app-littleengnuri.git']]
+                ])
+            }
+        }
+        stage('Package') {
+            steps {
+                sh 'npm install'
+                sh 'npm run build'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh "scp -r ./dist ${DEV_WEB}:/data/web/homelearnbook/apps/littleengnuri.${currentBuild.number}"
+                sh "scp ./deploy/littleengnuri-rotate-dev.sh ${DEV_WEB}:/data/web/homelearnbook/apps/${ROTATE_SHELL}"
+                sh "ssh ${DEV_WEB} \"cd /data/web/homelearnbook/apps && sed -i 's/\015//g' ${ROTATE_SHELL} && chmod 755 ${ROTATE_SHELL}\""
+                sh "ssh ${DEV_WEB} \"cd /data/web/homelearnbook/apps && env NEXT_VER_PATH=littleengnuri.${currentBuild.number} ./${ROTATE_SHELL}\""
+            }
+        }
+    }
+    post {
+        always {
+            echo changeLogs()
+        }
+        success {
+            noti("${APPNAME} 배포 완료", "#36a64f", changeLogs())
+        }
+        unstable {
+            noti("${APPNAME} 배포 실패(unstable)", "#ffc107", changeLogs())
+        }
+        failure {
+            noti("${APPNAME} 배포 실패(failure)", "#dc3545", changeLogs())
+        }
+        aborted {
+            noti("${APPNAME} 배포 실패(aborted)", "#dc3545", changeLogs())
+        }
+    }
+}

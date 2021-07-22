@@ -87,7 +87,6 @@ export class Character extends PIXI.Container {
 	get cha(): PIXI.Sprite {
 		return this.mCha;
 	}
-
 	private mGuideSnd: PIXI.sound.Sound;
 	set guideSnd(v: PIXI.sound.Sound) {
 		if (this.mGuideSnd) {
@@ -97,6 +96,7 @@ export class Character extends PIXI.Container {
 		this.mGuideSnd = v;
 	}
 
+	private mBubble: PIXI.Sprite;
 	private mBubbleAni: gsap.core.Timeline;
 
 	// 말주머니안의 점을 가리거나 보여주는 역할
@@ -104,14 +104,12 @@ export class Character extends PIXI.Container {
 	private mMaskBackUpX: number;
 	constructor() {
 		super();
-
-		this.mCha = new PIXI.Sprite();
-		this.mCha.texture = ResourceManager.Handle.getCommon(
-			'character.png',
-		).texture;
+		this.mCha = new PIXI.Sprite(
+			ResourceManager.Handle.getCommon('character.png').texture,
+		);
 		this.mCha.anchor.set(0.5);
 		this.mCha.angle = 34;
-		this.mCha.x = -66;
+		this.mCha.x = -70;
 
 		this.addChild(this.mCha);
 
@@ -126,33 +124,40 @@ export class Character extends PIXI.Container {
 		this.interactiveFlag(true);
 	}
 
+	reset() {
+		gsap.killTweensOf(this);
+		gsap.killTweensOf(this.mCha);
+		this.mCha.anchor.set(0.5);
+		this.mCha.angle = 34;
+		this.x = -120;
+	}
 	// 캐릭터 말주머니 생성
 	createSpeech() {
-		const bubble = new PIXI.Sprite(
+		this.mBubble = new PIXI.Sprite(
 			ResourceManager.Handle.getCommon(`bubble.png`).texture,
 		);
-		bubble.anchor.set(0.5);
-		bubble.position.set(46, -90);
+		this.mBubble.anchor.set(0.5);
+		this.mBubble.position.set(46, -90);
 
 		// 말주머니 안에 들어가는 점 점 점 이미지
 		const dot = new PIXI.Sprite(
 			ResourceManager.Handle.getCommon(`bubble_dot.png`).texture,
 		);
 		dot.anchor.set(0.5);
-		dot.position.set(bubble.x, bubble.y);
+		dot.position.set(this.mBubble.x, this.mBubble.y);
 
 		// 마스크로 점 하나만 보이게 한뒤, 마스크의 위치설정으로 모션 생성
 		this.mBubbleMask = new PIXI.Graphics();
 		this.mBubbleMask.beginFill(0x000000, 1);
-		this.mBubbleMask.drawRect(0, 0, bubble.width, bubble.height);
+		this.mBubbleMask.drawRect(0, 0, this.mBubble.width, this.mBubble.height);
 		this.mBubbleMask.endFill();
-		this.mBubbleMask.pivot.set(bubble.width / 2, bubble.height / 2);
-		this.mBubbleMask.position.set(bubble.x - 36, bubble.y);
+		this.mBubbleMask.pivot.set(this.mBubble.width / 2, this.mBubble.height / 2);
+		this.mBubbleMask.position.set(this.mBubble.x - 36, this.mBubble.y);
 		this.mMaskBackUpX = this.mBubbleMask.x;
 
 		dot.mask = this.mBubbleMask;
 
-		this.addChild(bubble, dot, this.mBubbleMask);
+		this.addChild(this.mBubble, dot, this.mBubbleMask);
 	}
 
 	// 캐릭터 말주머니 모션
@@ -177,33 +182,45 @@ export class Character extends PIXI.Container {
 		// 이벤트 중복 피하기 위해 인터렉션을 끈다.
 		this.interactiveFlag(false);
 		// 모션 중
-		// gsap.to(this.mCha, { angle: 0, duration: 0.5 });
-		// gsap.to(this, { x: 100, duration: 0.5 });
 		await this.guideMotion();
-		// gsap.to(this.mCha, { angle: 45, duration: 0.5 });
-		// gsap.to(this, { x: 0, duration: 0.5 });
-		// 모션이 끝나면 다시 인터렉션을 켜준다.
 
+		// 모션이 끝나면 다시 인터렉션을 켜준다.
 		this.interactiveFlag(true);
 	}
 
 	guideMotion(): Promise<void> {
 		return new Promise<void>(resolve => {
 			let duration = 0;
+
+			this.mBubble.visible = false;
+			this.mBubbleMask.visible = false;
+
 			if (this.mGuideSnd) {
 				this.mGuideSnd.play();
 				duration = this.mGuideSnd.duration;
 			}
-			gsap.to(this.mCha, { angle: 0, duration: 0.5 });
-			const timeline = gsap.timeline({});
-			timeline.to(this, { x: 100, duration: 0.5 });
-			timeline.to(this, { x: 100, duration: duration });
-			gsap.to(this.mCha, { angle: 45, duration: 0.5 }).delay(duration + 0.5);
-			timeline
-				.to(this, { x: 0, duration: 0.5 })
-				.eventCallback('onComplete', () => {
-					resolve();
-				});
+
+			this.mCha.angle = 0;
+			// gsap.to(this.mCha, { angle: 0, duration: 0.5 });
+			gsap.to(this, { x: 100, duration: 0.3 });
+			gsap
+				.to(this.mCha, { angle: 24, duration: 0.6, ease: Power0.easeNone })
+				.yoyo(true)
+				.repeat(-1)
+				.delay(0.5);
+
+			gsap.delayedCall(duration, () => {
+				gsap.killTweensOf(this);
+				gsap.killTweensOf(this.mCha);
+				gsap.to(this.mCha, { angle: 34, duration: 0.5 });
+				gsap
+					.to(this, { x: 0, duration: 0.5 })
+					.eventCallback('onComplete', () => {
+						this.mBubble.visible = true;
+						this.mBubbleMask.visible = true;
+						resolve();
+					});
+			});
 		});
 	}
 
@@ -277,9 +294,11 @@ export class PrevNextBtn extends PIXI.Container {
 		return new Promise<void>(resolve => {
 			// this.onClickPrev = () => null;
 			// this.onClickNext = () => null;
+			this.mPrevBtn.alpha = 1;
 			this.mPrevBtn.interactive = true;
 			this.mPrevBtn.buttonMode = true;
 
+			this.mNextBtn.alpha = 1;
 			this.mNextBtn.interactive = true;
 			this.mNextBtn.buttonMode = true;
 
@@ -288,9 +307,6 @@ export class PrevNextBtn extends PIXI.Container {
 	}
 
 	disableBtn(btn: string) {
-		if (Config.isFreeStudy) {
-			return;
-		}
 		if (btn == 'prev') {
 			this.mPrevBtn.alpha = 0.6;
 			this.mPrevBtn.interactive = false;
@@ -381,11 +397,37 @@ export class Controller extends PIXI.Container {
 		return this.mBGMSprite;
 	}
 
+	private mStudyedStep: {
+		label: '';
+		completed: {
+			module1: false;
+			module2?: false;
+			module3?: false;
+			module4?: false;
+		};
+	};
+	get studyed(): {
+		label: '';
+		completed: {
+			module1: false;
+			module2?: false;
+			module3?: false;
+			module4?: false;
+		};
+	} {
+		return this.mStudyedStep;
+	}
+
 	constructor() {
 		super();
 	}
 
 	async onInit() {
+		this.mStudyedStep = {
+			label: '',
+			completed: { module1: false, module2: false },
+		};
+		await this.createStudyedStep();
 		this.mBGMflag = true;
 
 		this.mCurrentActivity = 'chant';
@@ -419,6 +461,36 @@ export class Controller extends PIXI.Container {
 		this.addChild(this.mPrevNextBtn);
 	}
 
+	private createStudyedStep(): Promise<void> {
+		return new Promise<void>(resolve => {
+			const mode = Config.currentMode;
+			const idx = Config.currentIdx;
+			if (mode !== 0) {
+				for (let i = 0; i < mode; i++) {
+					const studyed = this.mStudyedStep[i];
+					studyed.completed.module1 = true;
+					idx == 1
+						? (studyed.completed.module2 = true)
+						: (studyed.completed.module2 = false);
+				}
+			} else {
+				this.mStudyedStep[0] = {
+					label: 'chant',
+					completed: { module1: false },
+				};
+				this.mStudyedStep[1] = {
+					label: 'sound',
+					completed: { module1: false, module2: false },
+				};
+				this.mStudyedStep[2] = {
+					label: 'game',
+					completed: { module1: false, module2: false },
+				};
+			}
+			console.log(this.mStudyedStep);
+			resolve();
+		});
+	}
 	updateInfo() {
 		this.mTitleText.text = `${Config.subjectNum}장`;
 		this.mTitleText.pivot.set(
@@ -426,9 +498,7 @@ export class Controller extends PIXI.Container {
 			this.mTitleText.height / 2,
 		);
 
-		this.mSubText.text = `${Config.subjectNum}장)  ${
-			gameData[`day${Config.subjectNum}`].title
-		}`;
+		this.mSubText.text = `  ${gameData[`day${Config.subjectNum}`].title}`;
 		this.mSubText.pivot.set(this.mSubText.width / 2, this.mSubText.height / 2);
 		this.mSubText.x =
 			-this.mLongStep.width / 2 + this.mStepBg.width + this.mSubText.width / 2;
@@ -455,8 +525,13 @@ export class Controller extends PIXI.Container {
 
 	// 캐릭터 위치 , 이전다음버튼 리셋
 	async reset() {
+		PhonicsApp.Handle.currectSceneName == 'chant'
+			? (this.mCha.visible = false)
+			: (this.mCha.visible = true);
+
 		if (this.mPrevNextBtn) await this.mPrevNextBtn.resetBtn();
 		this.mCha.position.set(0, 260 - 20);
+		this.mCha.reset();
 		this.mCha.bubble();
 		this.mCha.interactiveFlag(true);
 	}
@@ -549,7 +624,7 @@ export class Controller extends PIXI.Container {
 
 			this.mTitleText = new PIXI.Text('1장', {
 				fill: 0xffffff,
-				fontFamily: 'minigate Bold ver2',
+				fontFamily: 'NanumSquareRound',
 				fontSize: 24,
 				padding: 20,
 			});
@@ -558,7 +633,7 @@ export class Controller extends PIXI.Container {
 				this.mTitleText.width / 2,
 				this.mTitleText.height / 2,
 			);
-			this.mTitleText.position.set(-10, 0);
+			this.mTitleText.position.set(-14, 0);
 
 			this.mStepArrow = new PIXI.Sprite(
 				ResourceManager.Handle.getCommon('step_arrow.png').texture,
@@ -585,9 +660,9 @@ export class Controller extends PIXI.Container {
 			this.mLongStep.position.set(-this.mLongStep.width / 2, this.mStepBg.y);
 
 			this.mSubText = new PIXI.Text(
-				`${Config.subjectNum}장)  ${gameData[`day${Config.subjectNum}`].title}`,
+				`  ${gameData[`day${Config.subjectNum}`].title}`,
 				{
-					fontFamily: 'minigate Bold ver2',
+					fontFamily: 'NanumSquareRound',
 					fontSize: 24,
 					fill: 0xffffff,
 					padding: 20,
@@ -705,22 +780,14 @@ export class Controller extends PIXI.Container {
 	}
 
 	checkAbleLabel() {
-		const data = [{ name: '', played: false }];
-		for (let i = 0; i < this.mLabelBtnAry.length; i++) {
-			const label = this.mLabelBtnAry[i];
-			data[i] = { name: label.label, played: label.completed };
-		}
-		return data;
+		return this.mStudyedStep;
 	}
 
-	completedLabel(sceneName: string): Promise<void> {
+	completedLabel(): Promise<void> {
 		return new Promise<void>(resolve => {
-			for (const label of this.mLabelBtnAry) {
-				if (sceneName == label.label) {
-					label.completed = true;
-					console.log(label.label, label.completed);
-				}
-			}
+			this.mStudyedStep[Config.currentMode].completed[
+				`module${Config.currentIdx + 1}`
+			] = true;
 			resolve();
 		});
 	}

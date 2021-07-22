@@ -73,12 +73,12 @@ export default class App extends Vue {
 		const h = app.clientHeight;
 
 		const canvas = document.getElementById('canvas');
-		if (w / h > 1.6) {
+		if (w / h > 1.7) {
 			// 가로가 넓어서 높이 100%일때
-			canvas.setAttribute('style', `width: ${h * 1.6}px; height: ${h}px;`);
+			canvas.setAttribute('style', `width: ${h * 1.7}px; height: ${h}px;`);
 		} else {
 			// 세로가 넓어서 너비가 100%일때
-			canvas.setAttribute('style', `width: ${w}px; height: ${w / 1.6}px;`);
+			canvas.setAttribute('style', `width: ${w}px; height: ${w / 1.7}px;`);
 		}
 
 		if (h - 100 > w) {

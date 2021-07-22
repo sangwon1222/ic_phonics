@@ -175,6 +175,7 @@ export class AlphabetApp extends App {
 		) {
 			Config.subjectName = Util.getSubjectStr(Config.subjectNum).toLowerCase();
 			App.Handle.setAlphabet = Config.subjectName;
+
 			this.mCurrentIdx.mMode = 0;
 			this.mCurrentIdx.mIdx = 0;
 

@@ -88,14 +88,22 @@ export class PhonicsApp extends PIXI.Application {
 
 		pixiSound.context.paused = false;
 		await pixiSound.context.refresh();
+		this.renderer.reset();
+		gsap.globalTimeline.clear();
+		pixiSound.resumeAll();
+
 		this.mSceneStage = new PIXI.Container();
 		this.mModalStage = new PIXI.Container();
+
 		this.stage.addChild(this.mSceneStage, this.mModalStage);
+
+		this.mLoadingScene = new LoadingBar();
+		this.mLoadingScene.interactive = true;
+		this.mModalStage.addChild(this.mLoadingScene);
+		await this.mLoadingScene.load();
 
 		this.mSceneStage.zIndex = 1;
 		this.mModalStage.zIndex = 2;
-
-		await PhonicsApp.Handle.loddingFlag(true);
 
 		await this.getStudyInfo();
 
@@ -114,6 +122,7 @@ export class PhonicsApp extends PIXI.Application {
 
 		await this._fontLoading();
 		await ResourceManager.Handle.loadCommonResource(Common);
+		ResourceManager.Handle.getCommon('button_click.mp3').sound.play();
 
 		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 		if (window['video']) {
@@ -124,10 +133,6 @@ export class PhonicsApp extends PIXI.Application {
 			window['bgm'].pause();
 			window['bgm'] = null;
 		}
-
-		this.renderer.reset();
-		gsap.globalTimeline.clear();
-		pixiSound.stopAll();
 
 		this.stage.sortableChildren = true;
 
@@ -187,12 +192,6 @@ export class PhonicsApp extends PIXI.Application {
 
 		window['phonics_xCaliper'].AssignableStudyStarted();
 
-		// if (window['Android']) {
-		// 	window['Android'].hideLoading();
-		// } else {
-		await PhonicsApp.Handle.loddingFlag(false);
-		// }
-
 		await this.goScene(this.mPrevScene);
 	}
 
@@ -223,20 +222,7 @@ export class PhonicsApp extends PIXI.Application {
 	}
 
 	async loddingFlag(flag: boolean) {
-		if (flag) {
-			if (this.mLoadingScene) return;
-			this.mLoadingScene = new LoadingBar();
-			this.mLoadingScene.zIndex = 3;
-			await this.mLoadingScene.load();
-			this.mLoadingScene.interactive = true;
-			this.mModalStage.addChild(this.mLoadingScene);
-		} else {
-			if (this.mLoadingScene) {
-				await this.mLoadingScene.remove();
-				this.mModalStage.removeChild(this.mLoadingScene);
-				this.mLoadingScene = null;
-			}
-		}
+		this.mLoadingScene.visible = flag;
 	}
 
 	addScene(scene: SceneBase) {
@@ -258,7 +244,10 @@ export class PhonicsApp extends PIXI.Application {
 			].src = `${Config.restAPIProd}ps_phonics/viewer/sounds/${sceneName}_bgm.mp3`;
 			window['bgm'].play();
 			window['bgm'].loop = true;
-			window['bgm'].volume = 1;
+
+			this.controller.bgmFlag
+				? (window['bgm'].volume = 1)
+				: (window['bgm'].volume = 0);
 
 			this.mController.bgmBtn.visible = true;
 		} else {
@@ -287,11 +276,13 @@ export class PhonicsApp extends PIXI.Application {
 				this.mSceneStage.removeChildren();
 				this.mSceneStage.addChild(scene);
 
+				await this.loddingFlag(true);
+				await this.mController.reset();
+
 				this.setAssignableViewed();
 				await scene.onInit();
-				await scene.onStart();
-				this.mController.reset();
 				await this.loddingFlag(false);
+				await scene.onStart();
 				break;
 			}
 		}

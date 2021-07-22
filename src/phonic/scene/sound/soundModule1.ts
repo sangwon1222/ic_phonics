@@ -75,8 +75,8 @@ export class CompleteCard extends PIXI.Container {
 
 	// 단어 텍스트를 만든다.
 	createText() {
+		/**해당 음가만 노란색으로 칠해주는 코드 */
 		let offsetX = 0;
-
 		const title = gameData[`day${Config.subjectNum}`].title;
 		let titleLength = 0;
 		for (const syllable of this.mWord) {
@@ -93,20 +93,22 @@ export class CompleteCard extends PIXI.Container {
 			}
 			const txt = new PIXI.Text(syllable, {
 				fontFamily: 'minigate Bold ver2',
-				padding: 20,
+				padding: 40,
 				fontSize: 220,
 				fill: color,
 			});
-			this.mTxtStage.addChild(txt);
 			txt.x = offsetX;
 			offsetX += txt.width;
+			this.mTxtStage.addChild(txt);
 			this.mTxtArray.push(txt);
 		}
+		/**해당 음가만 노란색으로 칠해주는 코드 */
+
 		this.mTxtStage.pivot.set(
 			this.mTxtStage.width / 2,
 			this.mTxtStage.height / 2,
 		);
-		this.mTxtStage.position.set(Config.width / 2 + 20, 480);
+		this.mTxtStage.position.set(Config.width / 2 + 20 + 30, 480);
 	}
 
 	// 단어 이미지카드를 만든다.
@@ -285,6 +287,8 @@ export class QuizTxt extends PIXI.Sprite {
 	// 데이터 초기화 및 재설정
 	async onInit() {
 		this.removeChildren();
+		this.sortableChildren = true;
+
 		await this.createTxt();
 		await this.createWaveGraphic();
 	}
@@ -310,10 +314,14 @@ export class QuizTxt extends PIXI.Sprite {
 			this.mTxtBg.anchor.set(0.5);
 
 			this.anchor.set(0.5);
+			/**
+			 * anchor가 이미지 가운데이기 때문에
+			 * startY는 이미지높이의 반만큼 내려주고
+			 * endY는 이미지높이의 반만큼 올려준다.
+			 */
 			this.mStartY = this.mTxtBg.height / 2;
 			this.mEndY = -this.mTxtBg.height / 2;
 
-			this.sortableChildren = true;
 			this.mTxtBg.zIndex = 3;
 
 			this.addChild(this.mTxtBg);
@@ -357,7 +365,8 @@ export class QuizTxt extends PIXI.Sprite {
 
 			const moveValue = this.mTxtBg.height / 4;
 
-			ResourceManager.Handle.getCommon('snd_finger.mp3').sound.play();
+			// ResourceManager.Handle.getCommon('snd_finger.mp3').sound.play();
+			ResourceManager.Handle.getCommon('sound_letter_up.mp3').sound.play();
 			gsap
 				.to(this.mWave, { y: this.mWave.y - moveValue, duration: 0.5 })
 				.eventCallback('onComplete', async () => {
@@ -424,9 +433,9 @@ export class Sound1 extends SoundModule {
 		Config.currentMode = 1;
 		Config.currentIdx = 0;
 
-		await (this.parent.parent as Sound).controller.reset();
-
 		this.removeChildren();
+		this.sortableChildren = true;
+
 		await pixiSound.resumeAll();
 
 		this.mWordAry = [];
@@ -452,22 +461,38 @@ export class Sound1 extends SoundModule {
 		);
 		this.mStarBar = new StarBar(4);
 		this.mStarBar.position.set(Config.width - 30, 30);
-		await this.mStarBar.onInit();
 
 		this.mStage = new PIXI.Container();
+		this.mStage.sortableChildren = true;
 
 		this.addChild(bg, this.mStarBar, this.mStage);
+		await this.mStarBar.onInit();
 	}
 
 	async onStart() {
+		await this.resetQuizData('start');
+
+		await PhonicsApp.Handle.controller.settingGuideSnd(
+			ResourceManager.Handle.getCommon('phonics_snd_dic2.mp3').sound,
+		);
+		await PhonicsApp.Handle.controller.startGuide();
+
+		this.mQuizTxt.startEvent();
+		this.showAffor();
+	}
+
+	async resetQuizData(mode?: string) {
 		this.mStage.removeChildren();
 
 		await this.createTxt();
 		await this.mQuizTxt.onInit();
-		this.mQuizTxt.startEvent();
+		// this.mQuizTxt.startEvent();
 
 		await this.createAffor();
-		this.showAffor();
+		if (mode != 'start') {
+			this.mQuizTxt.startEvent();
+			this.showAffor();
+		}
 
 		this.mCompleteCard = new CompleteCard(this.mWord);
 		this.mStage.addChild(this.mCompleteCard);
@@ -481,9 +506,10 @@ export class Sound1 extends SoundModule {
 			const title = gameData[`day${Config.subjectNum}`].title;
 			if (this.mQuizTxt) {
 				this.mQuizTxt.removeChildren();
+				this.mQuizTxt = null;
 			}
 			this.mQuizTxt = new QuizTxt(title);
-			this.mQuizTxt.position.set(this.width / 2, this.height / 2);
+			this.mQuizTxt.position.set(this.width / 2, this.height / 2 - 30);
 
 			const clickEffect = new PIXI.spine.Spine(
 				ResourceManager.Handle.getCommon('sound_effect.json').spineData,
@@ -496,7 +522,6 @@ export class Sound1 extends SoundModule {
 
 			clickEffect.zIndex = 3;
 			clickEffect.visible = false;
-			this.sortableChildren = true;
 
 			this.mQuizTxt.scale.set(0);
 			this.mStage.addChild(this.mQuizTxt, clickEffect);
@@ -653,7 +678,7 @@ export class Sound1 extends SoundModule {
 			// await gsap.globalTimeline.clear();
 			await this.destroyAffor();
 			this.mCompleteCard.scale.set(1);
-			await this.onStart();
+			await this.resetQuizData();
 		} else {
 			await this.endMotion();
 		}
@@ -662,7 +687,6 @@ export class Sound1 extends SoundModule {
 	// 두번째 모듈로 넘어가기 딤드되고 다음버튼 깜빡
 	async endMotion() {
 		await (this.parent.parent as Sound).controller.outro();
-		this.sortableChildren = true;
 
 		const sound = this.parent.parent as Sound;
 		await this.endGame();
@@ -675,6 +699,8 @@ export class Sound1 extends SoundModule {
 		this.addChild(eop);
 		await eop.onInit();
 		await eop.start();
+
+		await (this.parent.parent as Sound).completedLabel();
 	}
 
 	async deleteMemory() {

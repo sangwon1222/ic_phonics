@@ -1,4 +1,4 @@
-import gsap from 'gsap/all';
+import gsap, { Expo, Power0, Power1, Power3, Power4 } from 'gsap/all';
 import { SceneBase } from '../../core/sceneBase';
 import config from '../../../com/util/Config';
 import { VideoControll } from '../../widget/videoControll';
@@ -6,43 +6,72 @@ import Config from '../../../com/util/Config';
 import { Eop } from '@/phonic/widget/eop';
 import { PhonicsApp } from '@/phonic/core/app';
 import { ResourceManager } from '@/phonic/core/resourceManager';
+import { gameData } from '@/phonic/core/resource/product/gameData';
 
 export class Chant extends SceneBase {
 	private mVideoSprite: PIXI.Sprite;
 	private mVideoControll: VideoControll;
+
+	private mGuideCharacter: PIXI.Sprite;
+	private mGuideSnd: PIXI.sound.Sound;
 	constructor() {
 		super('chant');
 	}
 	async onInit() {
-		Config.currentMode = 0;
-		Config.currentIdx = 0;
-		await this.controller.reset();
+		await PhonicsApp.Handle.loddingFlag(true);
 
+		/**
+		 * 로딩시에 씬이동을 하면 버그에러가
+		 * 생길 수 있어서 로딩 중에는 씬이동을 막아둔다.
+		 */
 		this.prevNextBtn.onClickNext = async () => null;
 		this.prevNextBtn.onClickPrev = async () => null;
 
-		if (window['ticker']) gsap.ticker.remove(window['ticker']);
+		Config.currentMode = 0;
+		Config.currentIdx = 0;
+
 		await this.resetBtn();
+		this.prevNextBtn.disableBtn('prev');
+		if (!Config.isFreeStudy) {
+			const completedData = this.controller.studyed[0].completed.module1;
+			if (!completedData) {
+				this.prevNextBtn.disableBtn('next');
+			}
+		}
+
+		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 		this.removeChildren();
 		await this.createDimmed();
+
+		if (Config.isFreeStudy) {
+			this.prevNextBtn.onClickNext = async () => {
+				await this.goScene('sound');
+			};
+		} else {
+			this.prevNextBtn.onClickNext = async () => {
+				const data = this.controller.studyed[0];
+				console.groupCollapsed(data.label);
+				console.log(data.completed);
+				console.groupEnd();
+				if (data.completed.module1) {
+					await this.goScene('sound');
+				}
+			};
+		}
 	}
 
 	async onStart() {
-		if (window['Android']) {
-			window['Android'].showLoading();
-		} else {
-			await PhonicsApp.Handle.loddingFlag(true);
-		}
-
 		await this.settingVideo();
+		await PhonicsApp.Handle.loddingFlag(false);
 
+		const title = gameData[`day${config.subjectNum}`].title.toLowerCase();
+		console.log(`title/chant_${title}_${config.subjectNum}.mp3`);
 		await ResourceManager.Handle.loadCommonResource({
 			sounds: [`title/chant_b_1.mp3`],
 		});
-
-		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon(`title/chant_b_1.mp3`).sound,
-		);
+		this.mGuideSnd = ResourceManager.Handle.getCommon(
+			`title/chant_b_1.mp3`,
+		).sound;
 
 		this.interactive = true;
 		const clickEffect = new PIXI.spine.Spine(
@@ -67,32 +96,82 @@ export class Chant extends SceneBase {
 			});
 		});
 
-		// if (window['Android']) {
-		// 	window['Android'].hideLoading();
-		// } else {
-		await PhonicsApp.Handle.loddingFlag(false);
-		// }
-		// gsap.to(this.mVideoSprite, { alpha: 1, duration: 1 });
-
-		await PhonicsApp.Handle.controller.startGuide();
+		await this.startGuide();
 		await this.mVideoControll.onInit();
+	}
 
-		this.prevNextBtn.disableBtn('prev');
-		this.prevNextBtn.blintNextBtn(true);
+	// 가이드 디렉션 모션
+	private async startGuide() {
+		// 캐릭터 생성
+		this.mGuideCharacter = new PIXI.Sprite(
+			ResourceManager.Handle.getCommon('animation_cha.png').texture,
+		);
+		this.mGuideCharacter.anchor.set(0.5);
+		this.mGuideCharacter.position.set(Config.width / 2 + 400, -100);
+		this.addChild(this.mGuideCharacter);
 
-		if (Config.isFreeStudy) {
-			this.prevNextBtn.onClickNext = async () => {
-				await this.goScene('sound');
-			};
-		} else {
-			this.prevNextBtn.onClickNext = async () => {
-				const data = this.controller.checkAbleLabel()[1];
-				console.log(data);
-				if (data.played) {
-					await this.goScene('sound');
-				}
-			};
-		}
+		// chant가 시작되면 캐릭터가 내려와서 디렉션을 읽어준다.
+		await this.downCharacter();
+		// 디렉션사운드가 끝나면 다시 올라간다.
+		await this.upCharacter();
+	}
+
+	// chant가 시작되면 캐릭터가 내려와서 디렉션을 읽어준다.
+	private downCharacter(): Promise<void> {
+		return new Promise<void>(resolve => {
+			gsap.to(this.mGuideCharacter, {
+				y: 300,
+				duration: 0.6,
+				ease: Expo.easeOut,
+			});
+			gsap
+				.to(this.mGuideCharacter, {
+					x: Config.width / 2,
+					duration: 1.4,
+					ease: Expo.easeOut,
+				})
+				.eventCallback('onComplete', () => {
+					gsap.to(this.mGuideCharacter, { angle: 10, duration: 1 });
+					gsap
+						.to(this.mGuideCharacter, {
+							angle: -10,
+							duration: 1,
+							ease: Power0.easeNone,
+						})
+						.delay(0.5)
+						.yoyo(true)
+						.repeat(-1);
+				});
+			this.mGuideSnd.play();
+			gsap.delayedCall(this.mGuideSnd.duration, () => {
+				gsap.killTweensOf(this.mGuideCharacter);
+				resolve();
+			});
+		});
+	}
+
+	// 디렉션사운드가 끝나면 다시 올라간다.
+	private upCharacter(): Promise<void> {
+		return new Promise<void>(resolve => {
+			gsap.to(this.mGuideCharacter, {
+				y: -100,
+				duration: 0.6,
+				ease: Expo.easeIn,
+			});
+			gsap
+				.to(this.mGuideCharacter, {
+					x: Config.width / 2 - 600,
+					duration: 0.5,
+					ease: Expo.easeIn,
+				})
+				.eventCallback('onComplete', () => {
+					gsap.delayedCall(0.5, () => {
+						this.removeChild(this.mGuideCharacter);
+						this.mGuideCharacter = null;
+						resolve();
+					});
+				});
+		});
 	}
 
 	settingVideo(): Promise<void> {
@@ -122,13 +201,14 @@ export class Chant extends SceneBase {
 				this.mVideoSprite.texture = PIXI.Texture.from(video);
 				this.mVideoSprite.width = config.width;
 				this.mVideoSprite.height = config.width / 1.777;
-				this.mVideoSprite.y = 64;
+				this.mVideoSprite.y = config.height - config.width / 1.777 + 18;
 				video.currentTime = 0;
 				video.pause();
 				video.oncanplay = () => null;
 
 				this.mVideoControll = new VideoControll();
 				this.addChild(this.mVideoSprite, this.mVideoControll);
+
 				resolve();
 			};
 		});
@@ -143,7 +223,8 @@ export class Chant extends SceneBase {
 		await eop.onInit();
 		await eop.start();
 
-		await this.controller.completedLabel('sound');
-		this.prevNextBtn.blintNextBtn(true);
+		await this.controller.completedLabel();
+		this.blintBtn(true);
+		// this.prevNextBtn.blintNextBtn(true);
 	}
 }

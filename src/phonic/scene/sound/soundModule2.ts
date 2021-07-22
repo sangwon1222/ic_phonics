@@ -443,6 +443,7 @@ export class RecRemote extends PIXI.Container {
 	async btnEvent() {
 		for (const btn of this.mBtnAry) {
 			btn.onPointertap = async () => {
+				window['clickSnd'].play();
 				await this.stopAffor();
 
 				// 스피커 눌렀을 때,
@@ -603,7 +604,6 @@ export class Sound2 extends SoundModule {
 	async onInit() {
 		Config.currentMode = 1;
 		Config.currentIdx = 1;
-		await (this.parent.parent as Sound).controller.reset();
 
 		await pixiSound.resumeAll();
 		this.removeChildren();

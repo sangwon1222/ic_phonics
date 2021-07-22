@@ -12,6 +12,7 @@ import Config from '@/com/util/Config';
 import { Star, StarBar } from '@/phonic/widget/star';
 import pixiSound from 'pixi-sound';
 import { Eop } from '@/phonic/widget/eop';
+import { PhonicsApp } from '@/phonic/core/app';
 
 // 0x995bd9
 const variation = [0xff8baf, 0xb56340, 0x73be46];
@@ -105,9 +106,13 @@ export class ExamCard extends PIXI.Sprite {
 	// 정답일때 모션
 	correct(): Promise<void> {
 		return new Promise<void>(resolve => {
-			ResourceManager.Handle.getCommon(
+			// 정답 단어 사운드 ex {apple}
+			const quizWordSnd = ResourceManager.Handle.getCommon(
 				`${Config.subjectNum}_${this.mQuizText.text}.mp3`,
-			).sound.play();
+			).sound;
+
+			// 정답 효과 사운드 ex(띵동)
+			ResourceManager.Handle.getCommon(`phonics_correct.mp3`).sound.play();
 			this.mState = false;
 
 			this.mQuizText.isCorrect = false;
@@ -122,7 +127,10 @@ export class ExamCard extends PIXI.Sprite {
 						.to(this.scale, { x: 1, duration: duration })
 						.delay(duration)
 						.eventCallback('onComplete', () => {
-							resolve();
+							quizWordSnd.play();
+							gsap.delayedCall(quizWordSnd.duration, () => {
+								resolve();
+							});
 						});
 				});
 		});
@@ -131,7 +139,7 @@ export class ExamCard extends PIXI.Sprite {
 	// 오답일때 모션
 	wrong(): Promise<void> {
 		return new Promise<void>(resolve => {
-			ResourceManager.Handle.getCommon('game_wrong.mp3').sound.play();
+			ResourceManager.Handle.getCommon('phonics_wrong.mp3').sound.play();
 			this.mState = false;
 
 			gsap.killTweensOf(this);
@@ -198,7 +206,6 @@ export class Game1 extends GameModule {
 	}
 
 	async onInit() {
-		(this.parent.parent as Game).controller.reset();
 		this.mCompleteFlag = false;
 		Config.currentMode = 2;
 		Config.currentIdx = 0;
@@ -255,25 +262,9 @@ export class Game1 extends GameModule {
 				`game1_bg${this.mVariationIdx}.png`,
 			).texture,
 		);
-		this.addChild(bg);
-	}
-
-	async onStart() {
 		this.mSpeakerBtn = new Btn('speacker_btn_on.png', 'speacker_btn_off.png');
 		this.mSpeakerBtn.position.set(config.width / 2, 80);
-
-		const snd = ResourceManager.Handle.getCommon(
-			`title/${gameData[`day${Config.subjectNum}`].title}.mp3`,
-		).sound;
-
-		this.mSpeakerBtn.onPointerTap = async () => {
-			this.mSpeakerBtn.interact(false);
-			snd.play();
-			gsap.delayedCall(snd.duration, () => {
-				this.mSpeakerBtn.interact(true);
-			});
-		};
-		this.addChild(this.mSpeakerBtn);
+		this.addChild(bg, this.mSpeakerBtn);
 
 		// 카드생성
 		await this.createExamCard();
@@ -286,6 +277,25 @@ export class Game1 extends GameModule {
 
 		// 로켓 생성 및 시간설정
 		await this.createRocket();
+	}
+
+	async onStart() {
+		await PhonicsApp.Handle.controller.settingGuideSnd(
+			ResourceManager.Handle.getCommon('phonics_snd_dic2.mp3').sound,
+		);
+		await PhonicsApp.Handle.controller.startGuide();
+
+		const snd = ResourceManager.Handle.getCommon(
+			`title/${gameData[`day${Config.subjectNum}`].title}.mp3`,
+		).sound;
+
+		this.mSpeakerBtn.onPointerTap = async () => {
+			this.mSpeakerBtn.interact(false);
+			snd.play();
+			gsap.delayedCall(snd.duration, () => {
+				this.mSpeakerBtn.interact(true);
+			});
+		};
 		await this.cardInteraction(true);
 		this.startRocket();
 
@@ -492,8 +502,8 @@ export class Game1 extends GameModule {
 				this.cardInteraction(false);
 
 				if (box.isCorrect) {
-					this.nextStar();
 					await box.correct();
+					this.nextStar();
 				} else {
 					this.shakeCorrectCard();
 					await box.wrong();
@@ -640,7 +650,7 @@ export class Game1 extends GameModule {
 
 	//게임 끝
 	async endGame(timeOver?: boolean) {
-		(this.parent.parent as Game).controller.outro();
+		await (this.parent.parent as Game).controller.outro();
 
 		if (this.mTimeOver) {
 			this.mTimeOver.kill();
@@ -656,11 +666,7 @@ export class Game1 extends GameModule {
 		if (timeOver) {
 			await this.createTimeOverPop();
 		} else {
-			if (!Config.isFreeStudy) {
-				(this.parent.parent as Game).prevNextBtn.onClickNext = async () => {
-					(this.parent.parent as Game).clickNext();
-				};
-			}
+			await (this.parent.parent as Game).completedLabel();
 			this.mEop = new Eop();
 			this.mEop.zIndex = 20;
 			this.addChild(this.mEop);

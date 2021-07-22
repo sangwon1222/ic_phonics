@@ -91,22 +91,20 @@ export class Sound extends SceneBase {
 		super('sound');
 	}
 	async onInit() {
-		this.prevNextBtn.resetBtn();
-		this.prevNextBtn.onClickNext = async () => null;
-		Config.currentMode = 1;
-		// if (window['Android']) {
-		// 	window['Android'].showLoading();
-		// } else {
 		await PhonicsApp.Handle.loddingFlag(true);
-		// }
-		this.prevNextBtn.onClickPrev = async () => {
-			await this.prevModule();
-		};
-		this.prevNextBtn.onClickNext = async () => {
-			await this.clickNext();
-		};
 
-		this.resetBtn();
+		/**
+		 * 로딩시에 씬이동을 하면 버그에러가 생길 수 있어서
+		 * 로딩 중에는 씬이동을 막아둔다.
+		 */
+		this.prevNextBtn.onClickPrev = async () => null;
+		this.prevNextBtn.onClickNext = async () => null;
+
+		Config.currentMode = 1;
+
+		await this.resetBtn();
+
+		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 
 		const title = gameData[`day${Config.subjectNum}`].title;
 		await ResourceManager.Handle.loadCommonResource({
@@ -116,18 +114,33 @@ export class Sound extends SceneBase {
 				`title/${Config.subjectNum}_${title}_line.png`,
 			],
 		});
-		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 
 		this.removeChildren();
 		this.mEop = null;
-
 		this.mCurrentGameIdx = 0;
 		this.mSoundModule = [];
 
-		await this.createDimmed();
-		await this.createObject();
+		if (!Config.isFreeStudy) {
+			const completedData = this.controller.studyed[1].completed.module1;
+			if (!completedData) {
+				this.prevNextBtn.disableBtn('next');
+			}
+		}
+
+		this.prevNextBtn.onClickPrev = async () => {
+			if (!flag) return;
+			await this.prevModule();
+		};
+
+		let flag = true;
+		this.prevNextBtn.onClickNext = async () => {
+			if (!flag) return;
+			await this.clickNext();
+			flag = true;
+		};
 	}
 
+	//자유모드일때 / 학습모드일때, 분기쳐서 처리
 	async clickNext() {
 		//자유모드
 		if (Config.isFreeStudy) {
@@ -136,16 +149,26 @@ export class Sound extends SceneBase {
 				this.blintBtn(false);
 			} else {
 				this.mCurrentGameIdx = 0;
-				this.goScene('game');
+				await this.goScene('game');
 			}
 		} else {
-			//비자유모드
-			if (this.mSoundModule[this.mCurrentGameIdx + 1]) {
-				await this.nextModule();
-				this.blintBtn(false);
+			//학습모드
+			const data = this.controller.studyed[1];
+			console.groupCollapsed(data.label);
+			console.log(data.completed);
+			console.groupEnd();
+
+			if (this.mCurrentGameIdx == 0) {
+				if (this.controller.studyed[1].completed.module1) {
+					// await this.nextModule(true);
+					await this.nextModule();
+					// this.blintBtn(false);
+				}
 			} else {
-				this.mCurrentGameIdx = 0;
-				this.goScene('game');
+				if (this.controller.studyed[1].completed.module2) {
+					await this.goScene('game');
+					this.mCurrentGameIdx = 0;
+				}
 			}
 		}
 	}
@@ -165,12 +188,11 @@ export class Sound extends SceneBase {
 		this.mSoundModule.push(new Sound1());
 		this.mSoundModule.push(new Sound2());
 
-		await this.controller.reset();
 		this.mStage.addChild(this.mSoundModule[this.mCurrentGameIdx]);
 
 		await this.mSoundModule[this.mCurrentGameIdx].onInit();
-		await this.mSoundModule[this.mCurrentGameIdx].onStart();
 		await PhonicsApp.Handle.loddingFlag(false);
+		await this.mSoundModule[this.mCurrentGameIdx].onStart();
 	}
 
 	createObject(): Promise<void> {
@@ -188,39 +210,37 @@ export class Sound extends SceneBase {
 	}
 
 	// 선택한 idx의 모듈로 이동
-	async changeModule(idx: number) {
-		if (!Config.isFreeStudy) {
-			return;
-		}
+	// async changeModule(idx: number) {
+	// 	if (!Config.isFreeStudy) {
+	// 		return;
+	// 	}
 
-		pixiSound.stopAll();
-		await pixiSound.context.refresh();
-		await gsap.globalTimeline.clear();
-		await PhonicsApp.Handle.loddingFlag(true);
+	// 	pixiSound.stopAll();
+	// 	await pixiSound.context.refresh();
+	// 	await gsap.globalTimeline.clear();
+	// 	await PhonicsApp.Handle.loddingFlag(true);
 
-		await this.mProgressBar.disableStep();
-		await PhonicsApp.Handle.controller.prevNextBtn.lock();
-		await PhonicsApp.Handle.controller.reset();
+	// 	await this.mProgressBar.disableStep();
+	// 	await PhonicsApp.Handle.controller.prevNextBtn.lock();
 
-		if (this.mEop) {
-			this.removeChild(this.mEop);
-			this.mEop = null;
-		}
-		this.mCurrentGameIdx = idx;
-		if (this.mCurrentGameIdx >= 2) {
-			await this.endGame();
-			return;
-		}
-		this.mStage.removeChildren();
-		this.mStage.addChild(this.mSoundModule[this.mCurrentGameIdx]);
-		await this.mProgressBar.changeStep();
-		await this.mSoundModule[this.mCurrentGameIdx].onInit();
-		await PhonicsApp.Handle.loddingFlag(false);
-		await this.mSoundModule[this.mCurrentGameIdx].onStart();
+	// 	if (this.mEop) {
+	// 		this.removeChild(this.mEop);
+	// 		this.mEop = null;
+	// 	}
+	// 	this.mCurrentGameIdx = idx;
+	// 	if (this.mCurrentGameIdx >= 2) {
+	// 		await this.endGame();
+	// 		return;
+	// 	}
+	// 	this.mStage.removeChildren();
+	// 	this.mStage.addChild(this.mSoundModule[this.mCurrentGameIdx]);
+	// 	await this.mProgressBar.changeStep();
+	// 	await this.mSoundModule[this.mCurrentGameIdx].onInit();
+	// 	await PhonicsApp.Handle.loddingFlag(false);
+	// 	await this.mSoundModule[this.mCurrentGameIdx].onStart();
 
-		PhonicsApp.Handle.controller.reset();
-		await PhonicsApp.Handle.controller.prevNextBtn.unLock();
-	}
+	// 	await PhonicsApp.Handle.controller.prevNextBtn.unLock();
+	// }
 
 	// (다음모듈) or (다음게임) 으로 이동
 	async nextModule() {
@@ -234,7 +254,6 @@ export class Sound extends SceneBase {
 		await gsap.globalTimeline.clear();
 
 		await PhonicsApp.Handle.loddingFlag(true);
-		await PhonicsApp.Handle.controller.reset();
 		await gsap.globalTimeline.clear();
 		await this.mSoundModule[this.mCurrentGameIdx].deleteMemory();
 
@@ -244,15 +263,21 @@ export class Sound extends SceneBase {
 			await this.endGame();
 			return;
 		}
+		await this.resetBtn();
+
+		if (!Config.isFreeStudy) {
+			const completedData = this.controller.studyed[1].completed.module2;
+			if (!completedData) {
+				this.prevNextBtn.disableBtn('next');
+			}
+		}
 		this.mProgressBar.changeStep();
 		this.mStage.removeChildren();
 		this.mStage.addChild(this.mSoundModule[this.mCurrentGameIdx]);
+
 		await this.mSoundModule[this.mCurrentGameIdx].onInit();
 		await PhonicsApp.Handle.loddingFlag(false);
-
 		await this.mSoundModule[this.mCurrentGameIdx].onStart();
-
-		PhonicsApp.Handle.controller.reset();
 	}
 
 	// (이전모듈) or (이전게임) 으로 이동
@@ -265,8 +290,8 @@ export class Sound extends SceneBase {
 		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
 
+		await this.resetBtn();
 		await PhonicsApp.Handle.loddingFlag(true);
-		await PhonicsApp.Handle.controller.reset();
 		await gsap.globalTimeline.clear();
 		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 		this.mCurrentGameIdx -= 1;
@@ -276,28 +301,34 @@ export class Sound extends SceneBase {
 			return;
 		}
 
+		if (!Config.isFreeStudy) {
+			const completedData = this.controller.studyed[1].completed.module1;
+			if (!completedData) {
+				this.prevNextBtn.disableBtn('next');
+			}
+		}
 		this.mProgressBar.changeStep();
 
 		this.mStage.removeChildren();
 		this.mStage.addChild(this.mSoundModule[this.mCurrentGameIdx]);
+
 		await this.mSoundModule[this.mCurrentGameIdx].onInit();
 		await PhonicsApp.Handle.loddingFlag(false);
-
 		await this.mSoundModule[this.mCurrentGameIdx].onStart();
-		PhonicsApp.Handle.controller.reset();
 	}
 
-	// 모든 모듈 게임 끝났을 때.
+	// 두번째 모듈 게임 끝났을 때.
 	async endGame() {
-		await this.completedLabel('game');
-		this.blintBtn(true);
-
 		pixiSound.stopAll();
+		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
 
 		if (window['ticker']) {
 			gsap.ticker.remove(window['ticker']);
 		}
 		window['ticker'] = null;
+
+		await this.completedLabel();
+		this.blintBtn(true);
 	}
 }

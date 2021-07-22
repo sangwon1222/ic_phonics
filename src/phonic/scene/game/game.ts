@@ -12,6 +12,7 @@ import { gameData } from '@/phonic/core/resource/product/gameData';
 import { debugLine } from '@/phonic/utill/gameUtil';
 import pixiSound from 'pixi-sound';
 import { PhonicsApp } from '@/phonic/core/app';
+import { config } from 'vue/types/umd';
 
 // 씬 아래부분 숫자 scene index
 export class ProgressBar extends PIXI.Container {
@@ -85,27 +86,13 @@ export class Game extends SceneBase {
 		super('game');
 	}
 	async onInit() {
+		await PhonicsApp.Handle.loddingFlag(true);
+
 		Config.currentMode = 2;
 
-		// if (window['Android']) {
-		// 	window['Android'].showLoading();
-		// } else {
-		await PhonicsApp.Handle.loddingFlag(true);
-		// }
+		await this.resetBtn();
 
-		this.prevNextBtn.onClickPrev = async () => {
-			await this.prevModule();
-		};
-
-		if (Config.isFreeStudy) {
-			this.prevNextBtn.onClickNext = async () => {
-				this.clickNext();
-			};
-		} else {
-			this.prevNextBtn.onClickNext = async () => null;
-		}
-
-		this.resetBtn();
+		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 
 		const rscList = [
 			...gameData[`day${Config.subjectNum}`].list,
@@ -126,13 +113,64 @@ export class Game extends SceneBase {
 		await ResourceManager.Handle.loadProductResource({ images: images });
 		await ResourceManager.Handle.loadCommonResource({ sounds: sound });
 
+		this.removeChildren();
 		this.mCurrentGameIdx = 0;
 		this.mGameModule = [];
-		this.removeChildren();
-		await this.createDimmed();
+
+		if (!Config.isFreeStudy) {
+			const completedData = this.controller.studyed[2].completed.module1;
+			if (!completedData) {
+				this.prevNextBtn.disableBtn('next');
+			}
+		}
+
+		this.prevNextBtn.onClickPrev = async () => {
+			if (!flag) return;
+			await this.prevModule();
+		};
+
+		let flag = true;
+		this.prevNextBtn.onClickNext = async () => {
+			if (!flag) return;
+			await this.clickNext();
+			flag = true;
+		};
+	}
+
+	//자유모드일때 / 학습모드일때, 분기쳐서 처리
+	async clickNext() {
+		//자유모드
+		if (Config.isFreeStudy) {
+			if (this.mGameModule[this.mCurrentGameIdx + 1]) {
+				await this.nextModule();
+				this.blintBtn(false);
+			} else {
+				this.mCurrentGameIdx = 0;
+				await this.goScene('outro');
+			}
+		} else {
+			//학습모드
+			const data = this.controller.studyed[2];
+			console.groupCollapsed(data.label);
+			console.log(data.completed);
+			console.groupEnd();
+
+			if (this.mCurrentGameIdx == 0) {
+				if (this.controller.studyed[2].completed.module1) {
+					await this.nextModule();
+					// this.blintBtn(false);
+				}
+			} else {
+				if (this.controller.studyed[2].completed.module2) {
+					await this.goScene('outro');
+					this.mCurrentGameIdx = 0;
+				}
+			}
+		}
 	}
 
 	async onStart() {
+		this.removeChildren();
 		await this.createDimmed();
 		// 게임 모듈이 들어갈 공간
 		this.mStage = new PIXI.Container();
@@ -148,7 +186,6 @@ export class Game extends SceneBase {
 		this.mGameModule.push(new Game1());
 		this.mGameModule.push(new Game2());
 
-		await this.controller.reset();
 		this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
 
 		this.interactive = true;
@@ -174,74 +211,72 @@ export class Game extends SceneBase {
 
 		await this.mGameModule[this.mCurrentGameIdx].onInit();
 		await PhonicsApp.Handle.loddingFlag(false);
-		// if (window['Android']) {
-		// 	window['Android'].hideLoading();
-		// } else {
-		// }
 		await this.mGameModule[this.mCurrentGameIdx].onStart();
-	}
-
-	async clickNext() {
-		if (this.mGameModule[this.mCurrentGameIdx + 1]) {
-			await this.nextModule();
-			this.blintBtn(false);
-		} else {
-			this.mCurrentGameIdx = 1;
-			await this.endGame();
-		}
 	}
 
 	// 선택한 idx의 모듈로 이동
-	async changeModule(idx: number) {
-		if (!Config.isFreeStudy) {
-			return;
-		}
-		await gsap.globalTimeline.clear();
+	// async changeModule(idx: number) {
+	// 	if (!Config.isFreeStudy) {
+	// 		return;
+	// 	}
+	// 	await gsap.globalTimeline.clear();
 
-		pixiSound.stopAll();
-		await pixiSound.context.refresh();
+	// 	pixiSound.stopAll();
+	// 	await pixiSound.context.refresh();
 
-		if (window['ticker']) {
-			gsap.ticker.remove(window['ticker']);
-		}
-		this.mCurrentGameIdx = idx;
-		if (this.mCurrentGameIdx >= 2) {
-			await this.endGame();
-			return;
-		}
-		this.mProgressBar.changeStep();
-		this.mStage.removeChildren();
-		this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
-		await this.mGameModule[this.mCurrentGameIdx].onInit();
-		await this.mGameModule[this.mCurrentGameIdx].onStart();
-		PhonicsApp.Handle.controller.reset();
-		console.log(idx);
-	}
+	// 	if (window['ticker']) {
+	// 		gsap.ticker.remove(window['ticker']);
+	// 	}
+	// 	this.mCurrentGameIdx = idx;
+	// 	if (this.mCurrentGameIdx >= 2) {
+	// 		await this.endGame();
+	// 		return;
+	// 	}
+	// 	this.mProgressBar.changeStep();
+	// 	this.mStage.removeChildren();
+	// 	this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
+	// 	await this.mGameModule[this.mCurrentGameIdx].onInit();
+	// 	await this.mGameModule[this.mCurrentGameIdx].onStart();
+	// 	console.log(idx);
+	// }
 
 	// (다음모듈) or (다음게임) 으로 이동
 	async nextModule() {
-		if (!Config.isFreeStudy) {
-			this.prevNextBtn.onClickNext = async () => null;
-		}
 		await gsap.globalTimeline.clear();
 		if (window['ticker']) {
 			gsap.ticker.remove(window['ticker']);
 		}
+		window['ticker'] = null;
 
 		pixiSound.stopAll();
 		await pixiSound.context.refresh();
+		await gsap.globalTimeline.clear();
 
-		// await this.mGameModule[this.mCurrentGameIdx].endGame();
+		await PhonicsApp.Handle.loddingFlag(true);
 		await this.mGameModule[this.mCurrentGameIdx].deleteMemory();
 
 		this.mCurrentGameIdx += 1;
+		if (!this.mGameModule[this.mCurrentGameIdx] && !Config.isFreeStudy) {
+			this.prevNextBtn.onClickNext = async () => {
+				this.clickNext();
+			};
+			return;
+		}
+		await this.resetBtn();
+
+		if (!Config.isFreeStudy) {
+			const completedData = this.controller.studyed[2].completed.module2;
+			if (!completedData) {
+				this.prevNextBtn.disableBtn('next');
+			}
+		}
 		this.mProgressBar.changeStep();
 		this.mStage.removeChildren();
 		this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
-		await this.mGameModule[this.mCurrentGameIdx].onInit();
-		await this.mGameModule[this.mCurrentGameIdx].onStart();
 
-		PhonicsApp.Handle.controller.reset();
+		await this.mGameModule[this.mCurrentGameIdx].onInit();
+		await PhonicsApp.Handle.loddingFlag(false);
+		await this.mGameModule[this.mCurrentGameIdx].onStart();
 	}
 
 	// (이전모듈) or (이전게임) 으로 이동
@@ -254,7 +289,8 @@ export class Game extends SceneBase {
 			await this.goScene('sound');
 			return;
 		}
-
+		await this.resetBtn();
+		await PhonicsApp.Handle.loddingFlag(true);
 		pixiSound.stopAll();
 		await pixiSound.context.refresh();
 
@@ -262,15 +298,16 @@ export class Game extends SceneBase {
 
 		this.mStage.removeChildren();
 		this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
-		await this.mGameModule[this.mCurrentGameIdx].onInit();
-		await this.mGameModule[this.mCurrentGameIdx].onStart();
 
-		PhonicsApp.Handle.controller.reset();
+		await this.mGameModule[this.mCurrentGameIdx].onInit();
+		await PhonicsApp.Handle.loddingFlag(false);
+		await this.mGameModule[this.mCurrentGameIdx].onStart();
 	}
 
-	// 게임 끝나고 outro 실행
+	// 두번째 모듈 게임 끝났을 때.
 	async endGame() {
 		pixiSound.stopAll();
+		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
 
 		if (window['ticker']) {
@@ -278,6 +315,9 @@ export class Game extends SceneBase {
 		}
 		window['ticker'] = null;
 
-		await this.goScene('outro');
+		await this.completedLabel();
+		this.blintBtn(true);
+
+		// await this.goScene('outro');
 	}
 }

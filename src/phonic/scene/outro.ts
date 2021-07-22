@@ -13,14 +13,13 @@ export class Outro extends SceneBase {
 	}
 	async onInit() {
 		PhonicsApp.Handle.controllerVisible(false);
+	}
 
+	async onStart() {
 		await this.createBG();
 		await this.createTxt();
 		await this.createStar();
 		await this.createCha();
-	}
-
-	async onStart() {
 		await this.playOutro();
 	}
 

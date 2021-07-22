@@ -35,12 +35,6 @@ export class Intro extends SceneBase {
 		super('intro');
 	}
 	async onInit() {
-		// const eop = new PIXI.spine.Spine(
-		// 	ResourceManager.Handle.getCommon('eop.json').spineData,
-		// );
-		// this.addChild(eop);
-		// eop.state.setAnimation(0, `eop3`, false);
-		// eop.position.set(Config.width / 2, Config.height / 2);
 		await ResourceManager.Handle.loadCommonResource({
 			sounds: ['title/' + gameData[`day${Config.subjectNum}`].title + '.mp3'],
 		});
@@ -49,10 +43,6 @@ export class Intro extends SceneBase {
 		).sound;
 
 		PhonicsApp.Handle.controllerVisible(false);
-
-		await this.createBG();
-		await this.createTxt();
-		await this.createCha();
 
 		window.onkeydown = async (evt: KeyboardEvent) => {
 			if (evt.key == '+') {
@@ -67,6 +57,10 @@ export class Intro extends SceneBase {
 	}
 
 	async onStart() {
+		await this.createBG();
+		await this.createTxt();
+		await this.createCha();
+
 		let moveScene = 'chant';
 		switch (Config.currentMode) {
 			case 0:

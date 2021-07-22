@@ -1,3 +1,4 @@
+import * as PIXI from 'pixi.js';
 import { ObjectBase } from '../core/ObjectBase';
 import Config from '../util/Config';
 import * as Util from '../util/Util';
@@ -33,11 +34,15 @@ export class LoadingBar extends ObjectBase {
 	}
 
 	private create() {
-		console.log(this.mLoaderName);
-		console.log(
-			`${Config.restAPIProd}ps_${Config.appName}/viewer/common/spines/${this.mLoaderName}`,
-		);
-		this.mSheet = this.mLoader.resources[`loading`].spritesheet;
+		// console.log(this.mLoaderName);
+		// console.log(
+		// 	`${Config.restAPIProd}ps_${Config.appName}/viewer/common/spines/${this.mLoaderName}`,
+		// );
+		if (this.mLoader.resources[`loading`]) {
+			this.mSheet = this.mLoader.resources[`loading`].spritesheet;
+		} else {
+			return;
+		}
 
 		this.resetBgAry();
 
