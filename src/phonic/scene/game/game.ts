@@ -299,8 +299,8 @@ export class Game extends SceneBase {
 		this.mStage.removeChildren();
 		this.mStage.addChild(this.mGameModule[this.mCurrentGameIdx]);
 
-		await this.mGameModule[this.mCurrentGameIdx].onInit();
 		await PhonicsApp.Handle.loddingFlag(false);
+		await this.mGameModule[this.mCurrentGameIdx].onInit();
 		await this.mGameModule[this.mCurrentGameIdx].onStart();
 	}
 

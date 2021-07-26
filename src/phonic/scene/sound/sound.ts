@@ -312,8 +312,8 @@ export class Sound extends SceneBase {
 		this.mStage.removeChildren();
 		this.mStage.addChild(this.mSoundModule[this.mCurrentGameIdx]);
 
-		await this.mSoundModule[this.mCurrentGameIdx].onInit();
 		await PhonicsApp.Handle.loddingFlag(false);
+		await this.mSoundModule[this.mCurrentGameIdx].onInit();
 		await this.mSoundModule[this.mCurrentGameIdx].onStart();
 	}
 
