@@ -23,6 +23,7 @@ export class LoadingBar extends ObjectBase {
 	async load() {
 		this.mLoaderName = `loadingbar0${Math.floor(Math.random() * 5 + 1)}.json`;
 		this.mLoader = new PIXI.Loader();
+		this.mLoader.reset();
 		await this.mLoader
 			.add(
 				'loading',
@@ -38,11 +39,9 @@ export class LoadingBar extends ObjectBase {
 		// console.log(
 		// 	`${Config.restAPIProd}ps_${Config.appName}/viewer/common/spines/${this.mLoaderName}`,
 		// );
-		if (this.mLoader.resources[`loading`]) {
-			this.mSheet = this.mLoader.resources[`loading`].spritesheet;
-		} else {
-			return;
-		}
+		this.mLoader.resources[`loading`]
+			? (this.mSheet = this.mLoader.resources[`loading`].spritesheet)
+			: null;
 
 		this.resetBgAry();
 

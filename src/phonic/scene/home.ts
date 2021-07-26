@@ -128,11 +128,12 @@ export class Home extends SceneBase {
 					Config.subjectName = gameData[`day${Config.subjectNum}`].title;
 
 					console.groupCollapsed(
-						`%c change_subject`,
+						`%c 음가 세팅`,
 						'background:#000; color:#fff; padding:2px;',
 					);
-					console.log(`subjectNum => [ ${Config.subjectNum} ]`);
-					console.log(`subjectName => [ ${Config.subjectName} ]`);
+					console.log(
+						`[ ${Config.subjectNum} ] 번째 음가: [ ${Config.subjectName} ]`,
+					);
 					console.groupEnd();
 
 					window['clickSnd'].play();

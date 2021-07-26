@@ -399,7 +399,6 @@ export class QuizTxt extends PIXI.Sprite {
 		gsap
 			.to(this.scale, { x: 1.1, y: 1.1, duration: 0.5, ease: 'bounce' })
 			.eventCallback('onComplete', async () => {
-				window['currentAlphabet'].play();
 				await (this.parent.parent as Sound1).showCard();
 				this.removeChildren();
 				this.mTxtBg = null;
@@ -473,7 +472,7 @@ export class Sound1 extends SoundModule {
 		await this.resetQuizData('start');
 
 		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('phonics_snd_dic2.mp3').sound,
+			ResourceManager.Handle.getCommon('guide/sound_2.mp3').sound,
 		);
 		await PhonicsApp.Handle.controller.startGuide();
 
@@ -646,10 +645,13 @@ export class Sound1 extends SoundModule {
 	async showCard(): Promise<void> {
 		return new Promise<void>(resolve => {
 			this.destroyAffor();
+
+			window['currentAlphabet'].play();
+
 			gsap.to(this.mQuizTxt.scale, {
 				x: 0,
 				y: 0,
-				duration: 0.5,
+				duration: window['currentAlphabet'].duration,
 			});
 			gsap
 				.to(this.mQuizTxt, {
@@ -657,6 +659,7 @@ export class Sound1 extends SoundModule {
 					y: Config.height / 2,
 					duration: 0.5,
 				})
+				.delay(window['currentAlphabet'].duration)
 				.eventCallback('onComplete', async () => {
 					this.mStage.removeChild(this.mQuizTxt);
 					this.mQuizTxt = null;

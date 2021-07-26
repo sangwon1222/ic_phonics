@@ -397,24 +397,8 @@ export class Controller extends PIXI.Container {
 		return this.mBGMSprite;
 	}
 
-	private mStudyedStep: {
-		label: '';
-		completed: {
-			module1: false;
-			module2?: false;
-			module3?: false;
-			module4?: false;
-		};
-	};
-	get studyed(): {
-		label: '';
-		completed: {
-			module1: false;
-			module2?: false;
-			module3?: false;
-			module4?: false;
-		};
-	} {
+	private mStudyedStep: {};
+	get studyed(): {} {
 		return this.mStudyedStep;
 	}
 
@@ -423,10 +407,7 @@ export class Controller extends PIXI.Container {
 	}
 
 	async onInit() {
-		this.mStudyedStep = {
-			label: '',
-			completed: { module1: false, module2: false },
-		};
+		this.mStudyedStep = {};
 		await this.createStudyedStep();
 		this.mBGMflag = true;
 
@@ -487,7 +468,15 @@ export class Controller extends PIXI.Container {
 					completed: { module1: false, module2: false },
 				};
 			}
-			console.log(this.mStudyedStep);
+			console.groupCollapsed(
+				`%c 현재 액티비티 진도`,
+				'padding: 2px; background: #000; color: #fff;',
+			);
+			for (let i = 0; i < Object.keys(this.mStudyedStep).length; i++) {
+				console.log(`%c ${this.mStudyedStep[i].label}`, 'font-weight:800;');
+				console.log(this.mStudyedStep[i].completed);
+			}
+			console.groupEnd();
 			resolve();
 		});
 	}

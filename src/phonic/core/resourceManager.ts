@@ -49,6 +49,7 @@ export class ResourceManager {
 	private resetLoader(): Promise<void> {
 		return new Promise<void>(resolve => {
 			PIXI.utils.clearTextureCache();
+			PIXI.utils.destroyTextureCache();
 			PIXI.Loader.shared.destroy();
 			PIXI.Loader.shared.reset();
 			resolve();

@@ -107,11 +107,6 @@ export class PhonicsApp extends PIXI.Application {
 
 		await this.getStudyInfo();
 
-		console.log(
-			`자유모드 => [%c ${Config.isFreeStudy}`,
-			'color: red; font-weight:800;',
-			']',
-		);
 		// back 물리버튼 탭시의 처리를 나타낸다.
 		window.onBackPressed = function() {
 			this.exitApp();
@@ -235,6 +230,11 @@ export class PhonicsApp extends PIXI.Application {
 			return;
 		}
 
+		if (window['chant_guide_snd']) {
+			window['chant_guide_snd'].pause();
+			window['chant_guide_snd'] = null;
+		}
+
 		await this.resetTicker();
 
 		if (sceneName == 'sound' || sceneName == 'game') {
@@ -322,8 +322,8 @@ export class PhonicsApp extends PIXI.Application {
 			if (Config.subjectName == undefined) {
 				Config.subjectName = gameData[`day${Config.subjectNum}`].title;
 			}
-			console.group(
-				`%c 시작 전 세팅값 `,
+			console.groupCollapsed(
+				`%c 초기 세팅값 `,
 				'background:#000; color:#fff;padding:2px;',
 			);
 			console.log(

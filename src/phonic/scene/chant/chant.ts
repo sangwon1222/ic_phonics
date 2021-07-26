@@ -13,7 +13,7 @@ export class Chant extends SceneBase {
 	private mVideoControll: VideoControll;
 
 	private mGuideCharacter: PIXI.Sprite;
-	private mGuideSnd: PIXI.sound.Sound;
+
 	constructor() {
 		super('chant');
 	}
@@ -64,14 +64,15 @@ export class Chant extends SceneBase {
 		await this.settingVideo();
 		await PhonicsApp.Handle.loddingFlag(false);
 
-		const title = gameData[`day${config.subjectNum}`].title.toLowerCase();
-		console.log(`title/chant_${title}_${config.subjectNum}.mp3`);
-		await ResourceManager.Handle.loadCommonResource({
-			sounds: [`title/chant_b_1.mp3`],
-		});
-		this.mGuideSnd = ResourceManager.Handle.getCommon(
-			`title/chant_b_1.mp3`,
-		).sound;
+		await this.loadGuideSnd();
+		// const title = gameData[`day${config.subjectNum}`].title.toLowerCase();
+		// console.log(`title/chant_${title}_${config.subjectNum}.mp3`);
+		// await ResourceManager.Handle.loadCommonResource({
+		// 	sounds: [`title/chant_b_1.mp3`],
+		// });
+		// this.mGuideSnd = ResourceManager.Handle.getCommon(
+		// 	`title/chant_b_1.mp3`,
+		// ).sound;
 
 		this.interactive = true;
 		const clickEffect = new PIXI.spine.Spine(
@@ -100,6 +101,18 @@ export class Chant extends SceneBase {
 		await this.mVideoControll.onInit();
 	}
 
+	private loadGuideSnd(): Promise<void> {
+		return new Promise<void>(resolve => {
+			const title = gameData[`day${config.subjectNum}`].title.toLowerCase();
+			window['chant_guide_snd'] = new Audio(
+				// `${Config.restAPI}viewer/sounds/title/chant_${title}_${config.subjectNum}.mp3`,
+				`${Config.restAPIProd}ps_phonics/viewer/sounds/title/chant_${title}_${config.subjectNum}.mp3`,
+			);
+			window['chant_guide_snd'].onloadedmetadata = () => {
+				resolve();
+			};
+		});
+	}
 	// 가이드 디렉션 모션
 	private async startGuide() {
 		// 캐릭터 생성
@@ -119,11 +132,13 @@ export class Chant extends SceneBase {
 	// chant가 시작되면 캐릭터가 내려와서 디렉션을 읽어준다.
 	private downCharacter(): Promise<void> {
 		return new Promise<void>(resolve => {
+			// y축
 			gsap.to(this.mGuideCharacter, {
 				y: 300,
 				duration: 0.6,
 				ease: Expo.easeOut,
 			});
+			// x축
 			gsap
 				.to(this.mGuideCharacter, {
 					x: Config.width / 2,
@@ -142,8 +157,8 @@ export class Chant extends SceneBase {
 						.yoyo(true)
 						.repeat(-1);
 				});
-			this.mGuideSnd.play();
-			gsap.delayedCall(this.mGuideSnd.duration, () => {
+			window['chant_guide_snd'].play();
+			gsap.delayedCall(window['chant_guide_snd'].duration, () => {
 				gsap.killTweensOf(this.mGuideCharacter);
 				resolve();
 			});
@@ -161,13 +176,17 @@ export class Chant extends SceneBase {
 			gsap
 				.to(this.mGuideCharacter, {
 					x: Config.width / 2 - 600,
-					duration: 0.5,
+					duration: 0.6,
 					ease: Expo.easeIn,
 				})
 				.eventCallback('onComplete', () => {
 					gsap.delayedCall(0.5, () => {
 						this.removeChild(this.mGuideCharacter);
 						this.mGuideCharacter = null;
+						if (window['chant_guide_snd']) {
+							window['chant_guide_snd'].pause();
+							window['chant_guide_snd'] = null;
+						}
 						resolve();
 					});
 				});

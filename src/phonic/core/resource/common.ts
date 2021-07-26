@@ -210,6 +210,12 @@ const soundsList = [
 
 	'phonics_correct.mp3',
 	'phonics_wrong.mp3',
+
+	//-------------guide sound--------------------
+	// 'guide/sound_1.mp3',
+	'guide/sound_2.mp3',
+	'guide/game_1.mp3',
+	'guide/game_2.mp3',
 	//-------------game--------------------
 	'game_popup.mp3',
 	// 'game_wrong.mp3',
@@ -219,7 +225,6 @@ const soundsList = [
 	'snd_finger.mp3',
 	'sound_letter_up.mp3',
 	'sound_record.mp3',
-	'phonics_snd_dic2.mp3',
 
 	//-------------eop--------------------
 	'awesome.wav',

@@ -10,6 +10,7 @@ import { debugLine } from '@/phonic/utill/gameUtil';
 import { StarBar } from '@/phonic/widget/star';
 import { Eop } from '@/phonic/widget/eop';
 import pixiSound from 'pixi-sound';
+import { PhonicsApp } from '@/phonic/core/app';
 
 export class Bag extends PIXI.Sprite {
 	private mQuizImg: PIXI.Sprite;
@@ -185,7 +186,7 @@ export class Bag extends PIXI.Sprite {
 
 	wrongMotion(): Promise<void> {
 		return new Promise<void>(resolve => {
-			ResourceManager.Handle.getCommon('game_wrong.mp3').sound.play();
+			ResourceManager.Handle.getCommon('phonics_wrong.mp3').sound.play();
 			this.tint = 0x6c6c6c;
 			this.mQuizImg.tint = 0x6c6c6c;
 
@@ -315,12 +316,18 @@ export class Game2 extends GameModule {
 	}
 
 	async onStart() {
+		await PhonicsApp.Handle.controller.settingGuideSnd(
+			ResourceManager.Handle.getCommon('guide/game_2.mp3').sound,
+		);
+
 		await this.createConveyor();
 		await this.createBag();
 		await this.createStar();
 		await this.createQuizBoard();
 
+		await PhonicsApp.Handle.controller.startGuide();
 		await this.boardShow(true);
+		await this.startGameEvent();
 	} //==================컨베이어==================================
 
 	// 컨베이어 생성 및 모션(ticker)생성
@@ -438,22 +445,6 @@ export class Game2 extends GameModule {
 
 				bag.position.set(offsetX, 400);
 				offsetX += bag.width + 100;
-
-				bag.onPointertap = async () => {
-					if (!bag.ableSpaceFlag) {
-						return;
-					}
-					await this.waitingInteractive(false);
-					this.mSpeed = 0;
-					if (this.mQuizData[this.mModuleStep] == bag.text) {
-						await bag.correctMotion();
-						await this.correct();
-					} else {
-						await bag.wrongMotion();
-					}
-					this.mSpeed = 1;
-					await this.waitingInteractive(true);
-				};
 			}
 			resolve();
 		});
@@ -556,6 +547,29 @@ export class Game2 extends GameModule {
 					.eventCallback('onComplete', () => {
 						resolve();
 					});
+			}
+		});
+	}
+
+	private startGameEvent(): Promise<void> {
+		return new Promise<void>(resolve => {
+			for (const bag of this.mBagAry) {
+				bag.onPointertap = async () => {
+					if (!bag.ableSpaceFlag) {
+						return;
+					}
+					await this.waitingInteractive(false);
+					this.mSpeed = 0;
+					if (this.mQuizData[this.mModuleStep] == bag.text) {
+						await bag.correctMotion();
+						await this.correct();
+					} else {
+						await bag.wrongMotion();
+					}
+					this.mSpeed = 1;
+					await this.waitingInteractive(true);
+				};
+				resolve();
 			}
 		});
 	}

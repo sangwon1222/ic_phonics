@@ -106,20 +106,21 @@ export class ExamCard extends PIXI.Sprite {
 	// 정답일때 모션
 	correct(): Promise<void> {
 		return new Promise<void>(resolve => {
-			// 정답 단어 사운드 ex {apple}
-			const quizWordSnd = ResourceManager.Handle.getCommon(
-				`${Config.subjectNum}_${this.mQuizText.text}.mp3`,
-			).sound;
-
 			// 정답 효과 사운드 ex(띵동)
 			ResourceManager.Handle.getCommon(`phonics_correct.mp3`).sound.play();
 			this.mState = false;
+
+			let wordSnd = ResourceManager.Handle.getCommon(
+				`${Config.subjectNum}_${this.mQuizText.text}.mp3`,
+			).sound;
 
 			this.mQuizText.isCorrect = false;
 			const duration = 0.25;
 			gsap
 				.to(this.scale, { x: 0, duration: duration })
 				.eventCallback('onComplete', () => {
+					wordSnd.play();
+
 					this.removeChildren();
 					this.addChild(this.mPixiText);
 					this.texture = this.mCorrectTexture;
@@ -127,8 +128,8 @@ export class ExamCard extends PIXI.Sprite {
 						.to(this.scale, { x: 1, duration: duration })
 						.delay(duration)
 						.eventCallback('onComplete', () => {
-							quizWordSnd.play();
-							gsap.delayedCall(quizWordSnd.duration, () => {
+							gsap.delayedCall(wordSnd.duration, () => {
+								wordSnd = null;
 								resolve();
 							});
 						});
@@ -173,6 +174,7 @@ export class Game1 extends GameModule {
 	private mCorrectCardAry: Array<ExamCard>;
 	private mEndGameFlag: boolean;
 	private mSpeakerBtn: Btn;
+	private mSpeakerSnd: PIXI.sound.Sound;
 
 	private mRocketStage: PIXI.Container;
 	private mRocket: PIXI.Sprite;
@@ -256,6 +258,7 @@ export class Game1 extends GameModule {
 		this.mRocketStage = null;
 		this.mRocket = null;
 		this.mRocketMask = null;
+		this.mSpeakerSnd = null;
 
 		const bg = new PIXI.Sprite(
 			ResourceManager.Handle.getCommon(
@@ -266,8 +269,20 @@ export class Game1 extends GameModule {
 		this.mSpeakerBtn.position.set(config.width / 2, 80);
 		this.addChild(bg, this.mSpeakerBtn);
 
+		await PhonicsApp.Handle.controller.settingGuideSnd(
+			ResourceManager.Handle.getCommon('guide/game_1.mp3').sound,
+		);
+		await PhonicsApp.Handle.controller.startGuide();
 		// 카드생성
 		await this.createExamCard();
+		for (const card of this.mExamAry) {
+			if (card.isCorrect) {
+				this.mSpeakerSnd = ResourceManager.Handle.getCommon(
+					`${Config.subjectNum}_${card.text}.mp3`,
+				).sound;
+				break;
+			}
+		}
 		// 각 카드 위치 지정
 		await this.setCardPos();
 		// 카드 클릭했을때,
@@ -280,22 +295,20 @@ export class Game1 extends GameModule {
 	}
 
 	async onStart() {
-		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('phonics_snd_dic2.mp3').sound,
-		);
-		await PhonicsApp.Handle.controller.startGuide();
-
-		const snd = ResourceManager.Handle.getCommon(
-			`title/${gameData[`day${Config.subjectNum}`].title}.mp3`,
-		).sound;
-
 		this.mSpeakerBtn.onPointerTap = async () => {
+			if (!this.mSpeakerSnd) {
+				return;
+			}
 			this.mSpeakerBtn.interact(false);
-			snd.play();
-			gsap.delayedCall(snd.duration, () => {
+			this.mSpeakerSnd.stop();
+			this.mSpeakerSnd.play();
+			gsap.delayedCall(this.mSpeakerSnd.duration, () => {
 				this.mSpeakerBtn.interact(true);
 			});
 		};
+
+		this.speakerAffor();
+
 		await this.cardInteraction(true);
 		this.startRocket();
 
@@ -315,6 +328,15 @@ export class Game1 extends GameModule {
 	nextStar() {
 		this.mStarBar.onStar(this.mModuleStep);
 		this.mModuleStep += 1;
+
+		for (const card of this.mExamAry) {
+			if (card.isCorrect) {
+				this.mSpeakerSnd = ResourceManager.Handle.getCommon(
+					`${Config.subjectNum}_${card.text}.mp3`,
+				).sound;
+				break;
+			}
+		}
 	}
 
 	// -----------------------------------------------------------로켓
@@ -555,8 +577,32 @@ export class Game1 extends GameModule {
 
 		this.mAffordance = gsap.delayedCall(4, async () => {
 			this.mAfforSnd.play();
+			this.speakerAffor();
 			await this.shakeCorrectCard();
 			this.affordanceCorrect();
+		});
+	}
+
+	speakerAffor() {
+		// 클릭 어포던스 이미지 생성
+		let hand = new PIXI.Sprite(
+			ResourceManager.Handle.getCommon('click.png').texture,
+		);
+		this.addChild(hand);
+		hand.anchor.set(0.5);
+		hand.position.set(this.mSpeakerBtn.x, this.mSpeakerBtn.y);
+		gsap
+			.to(hand.scale, { x: 0.8, y: 0.8, duration: 0.5, ease: Power0.easeNone })
+			.repeat(-1)
+			.yoyo(true);
+
+		this.mSpeakerBtn.interact(false);
+		this.mSpeakerSnd.play();
+		gsap.delayedCall(this.mSpeakerSnd.duration, () => {
+			gsap.killTweensOf(hand);
+			this.removeChild(hand);
+			hand = null;
+			this.mSpeakerBtn.interact(true);
 		});
 	}
 

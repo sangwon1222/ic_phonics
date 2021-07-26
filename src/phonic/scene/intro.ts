@@ -35,12 +35,12 @@ export class Intro extends SceneBase {
 		super('intro');
 	}
 	async onInit() {
-		await ResourceManager.Handle.loadCommonResource({
-			sounds: ['title/' + gameData[`day${Config.subjectNum}`].title + '.mp3'],
-		});
-		window['currentAlphabet'] = ResourceManager.Handle.getCommon(
-			'title/' + gameData[`day${Config.subjectNum}`].title + `.mp3`,
-		).sound;
+		window['currentAlphabet'] = new Audio(
+			`${config.restAPI}viewer/sounds/title/${
+				gameData[`day${Config.subjectNum}`].title
+			}_${config.subjectNum}.mp3`,
+		);
+		// 'title/' + gameData[`day${Config.subjectNum}`].title + `.mp3`,
 
 		PhonicsApp.Handle.controllerVisible(false);
 

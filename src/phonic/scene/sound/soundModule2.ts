@@ -120,7 +120,47 @@ export class CameraRemote extends PIXI.Container {
 		}
 	}
 
-	// 필터 , 말주머니 생성
+	registClickBubbleEvent() {
+		this.mBubble.interactive = true;
+		this.mBubble.buttonMode = true;
+		this.mBubble.on('pointertap', async () => {
+			await this.clickBubble();
+		});
+	}
+
+	clickBubble(): Promise<void> {
+		return new Promise<void>(resolve => {
+			gsap.killTweensOf(this.mBubble);
+			this.mBubble.scale.set(1);
+			let duration = 0;
+			this.mBubble.interactive = false;
+			this.mBubble.buttonMode = false;
+			if (window['currentAlphabet']) {
+				gsap.to(this.mBubble.scale, {
+					x: 1.05,
+					y: 1.05,
+					duration: 0.5,
+				});
+				window['currentAlphabet'].play();
+				duration = window['currentAlphabet'].duration;
+			}
+			gsap.delayedCall(duration, () => {
+				gsap
+					.to(this.mBubble.scale, {
+						x: 1,
+						y: 1,
+						duration: 0.5,
+					})
+					.eventCallback('onComplete', () => {
+						this.mBubble.interactive = true;
+						this.mBubble.buttonMode = true;
+						resolve();
+					});
+			});
+		});
+	}
+
+	// 필터 , 말주머니 생성 , 필터누르면 사운드 재생 함수
 	private createFillter(): Promise<void> {
 		return new Promise<void>(resolve => {
 			this.mBear = ResourceManager.Handle.getCommon('bear_big.png').texture;
@@ -169,6 +209,7 @@ export class CameraRemote extends PIXI.Container {
 				duration: 1,
 			});
 			this.addChild(this.mCameraFillter, this.mBubble);
+
 			resolve();
 		});
 	}
@@ -259,9 +300,14 @@ export class RecBtn extends PIXI.Sprite {
 			ResourceManager.Handle.getCommon('timer_3sec.json').spineData,
 		);
 		this.addChild(this.mSpine);
-		if (this.mRole == 'speacker') {
-			this.mSpine.state.timeScale = window['currentAlphabet'].duration * 3;
+
+		// 기본 스파인 길이 3초
+
+		// 녹음한 음성 들을때, 스파인 길이 조정
+		if (this.mRole == 'speacker' || this.mRole == 'fin') {
+			this.mSpine.state.timeScale = window['currentAlphabet'].duration;
 		}
+
 		this.mSpine.visible = false;
 		this.mSpine.state.addListener({
 			complete: () => {
@@ -443,7 +489,7 @@ export class RecRemote extends PIXI.Container {
 	async btnEvent() {
 		for (const btn of this.mBtnAry) {
 			btn.onPointertap = async () => {
-				window['clickSnd'].play();
+				await this.clickSnd();
 				await this.stopAffor();
 
 				// 스피커 눌렀을 때,
@@ -455,7 +501,7 @@ export class RecRemote extends PIXI.Container {
 				}
 
 				// RecBtn spine 모션이 끝나면 다음단계로 넘긴다. RecBtn=>timeSpine() 에 있음
-				if (btn.role == 'speacker') {
+				if (btn.role == 'speacker' || btn.role == 'fin') {
 					await this.clickSpeacker();
 				}
 
@@ -482,12 +528,27 @@ export class RecRemote extends PIXI.Container {
 		}
 	}
 
+	clickSnd(): Promise<void> {
+		return new Promise<void>(resolve => {
+			console.log(`clickSnd_start`);
+			let snd = window['clickSnd'];
+			snd.play();
+			gsap.delayedCall(snd.duration, () => {
+				snd = null;
+				console.log(`clickSnd_end`);
+				resolve();
+			});
+		});
+	}
+
 	clickSpeacker(): Promise<void> {
 		return new Promise<void>(resolve => {
+			console.log(`currentAlphabet_start`);
 			let snd = window['currentAlphabet'];
 			snd.play();
 			gsap.delayedCall(snd.duration, () => {
 				snd = null;
+				console.log(`currentAlphabet_end`);
 				resolve();
 			});
 		});
@@ -620,9 +681,12 @@ export class Sound2 extends SoundModule {
 		await this.mRecRemote.onInit();
 
 		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('phonics_snd_dic2.mp3').sound,
+			ResourceManager.Handle.getCommon('guide/sound_2.mp3').sound,
 		);
 		await PhonicsApp.Handle.controller.startGuide();
+
+		await this.mCameraRemote.clickBubble();
+		this.mCameraRemote.registClickBubbleEvent();
 
 		this.interactive = true;
 		const clickEffect = new PIXI.spine.Spine(
