@@ -133,15 +133,9 @@ export class CompleteCard extends PIXI.Container {
 	}
 
 	// 카드가 나오고 사운드가 끝나면 사라지는 코드 [모션 위주]
-	endMotion(): Promise<void> {
-		return new Promise<void>(resolve => {
-			gsap.to(this.mTxtStage.scale, { x: 0, y: 0, duration: 0.5 });
-			gsap
-				.to(this.mImgStage.scale, { x: 0, y: 0, duration: 0.5 })
-				.eventCallback('onComplete', () => {
-					resolve();
-				});
-		});
+	endMotion() {
+		this.mTxtStage.scale.set(0);
+		this.mImgStage.scale.set(0);
 	}
 
 	// 메모리 초기화
@@ -642,22 +636,25 @@ export class Sound1 extends SoundModule {
 	}
 
 	// QuizTxt =>startEvent()=> endMotion() 에 등록된 함수에서 실행
+
 	async showCard(): Promise<void> {
 		return new Promise<void>(resolve => {
 			this.destroyAffor();
 
 			window['currentAlphabet'].play();
 
-			gsap.to(this.mQuizTxt.scale, {
-				x: 0,
-				y: 0,
-				duration: window['currentAlphabet'].duration,
-			});
+			gsap
+				.to(this.mQuizTxt.scale, {
+					x: 0,
+					y: 0,
+					duration: 0.3,
+				})
+				.delay(window['currentAlphabet'].duration);
 			gsap
 				.to(this.mQuizTxt, {
 					x: Config.width / 2,
 					y: Config.height / 2,
-					duration: 0.5,
+					duration: 0.3,
 				})
 				.delay(window['currentAlphabet'].duration)
 				.eventCallback('onComplete', async () => {
@@ -676,9 +673,8 @@ export class Sound1 extends SoundModule {
 		this.mStarStep += 1;
 		const nextWord = gameData[`day${Config.subjectNum}`].list[this.mStarStep];
 		if (nextWord) {
-			this.mWord = gameData[`day${Config.subjectNum}`].list[this.mStarStep];
-			await this.mCompleteCard.endMotion();
-			// await gsap.globalTimeline.clear();
+			this.mWord = nextWord;
+			this.mCompleteCard.endMotion();
 			await this.destroyAffor();
 			this.mCompleteCard.scale.set(1);
 			await this.resetQuizData();

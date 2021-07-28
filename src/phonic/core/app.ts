@@ -131,7 +131,8 @@ export class PhonicsApp extends PIXI.Application {
 
 		this.stage.sortableChildren = true;
 
-		// PIXI.settings.TARGET_FPMS = 0.03;
+		PIXI.settings.TARGET_FPMS = 0.03;
+		PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
 		Config.mobile = isMobilePlatform();
 
 		// 기기 ON -> OFF 시 처리를 나타낸다.
@@ -383,9 +384,8 @@ export class PhonicsApp extends PIXI.Application {
 			// 	this.mLastPlayNum = this.getIdxNum(this.mCurrentIdx);
 			// }
 
-			if (tActAry[2] === 2) Config.isFreeStudy = true;
-
 			//오늘의 학습을 모두 완료 했을때 모든 메뉴 버튼 활성화를 나타낸다.
+			if (tActAry[2] === 2) Config.isFreeStudy = true;
 			// if (tActAry[2] === 2) this.mLastPlayNum = 10;
 			// this.setModeData(this.mLastPlayNum);
 		}

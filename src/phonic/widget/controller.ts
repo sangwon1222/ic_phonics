@@ -41,6 +41,8 @@ export class LabelBtn extends PIXI.Sprite {
 		).texture;
 		this.texture = this.mOff;
 
+		// this.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+
 		this.interactive = false;
 		this.buttonMode = false;
 
