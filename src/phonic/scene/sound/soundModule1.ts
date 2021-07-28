@@ -472,7 +472,7 @@ export class Sound1 extends SoundModule {
 		await this.resetQuizData('start');
 
 		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('guide/sound_2.mp3').sound,
+			ResourceManager.Handle.getCommon('guide/sound_1.mp3').sound,
 		);
 		await PhonicsApp.Handle.controller.startGuide();
 

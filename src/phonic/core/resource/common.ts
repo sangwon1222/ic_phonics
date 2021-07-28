@@ -212,7 +212,7 @@ const soundsList = [
 	'phonics_wrong.mp3',
 
 	//-------------guide sound--------------------
-	// 'guide/sound_1.mp3',
+	'guide/sound_1.mp3',
 	'guide/sound_2.mp3',
 	'guide/game_1.mp3',
 	'guide/game_2.mp3',
