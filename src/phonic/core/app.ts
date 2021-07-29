@@ -131,8 +131,7 @@ export class PhonicsApp extends PIXI.Application {
 
 		this.stage.sortableChildren = true;
 
-		PIXI.settings.TARGET_FPMS = 0.03;
-		PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+		// PIXI.settings.TARGET_FPMS = 0.03;
 		Config.mobile = isMobilePlatform();
 
 		// 기기 ON -> OFF 시 처리를 나타낸다.

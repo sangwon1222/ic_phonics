@@ -190,6 +190,7 @@ export class Game1 extends GameModule {
 	// 어포던스 반복 함수
 	private mAffordance: gsap.core.Tween;
 	private mAfforSnd: PIXI.sound.Sound;
+	private mAfforHand: PIXI.Sprite;
 
 	// 시간초과 함수
 	private mTimeOver: any;
@@ -259,6 +260,7 @@ export class Game1 extends GameModule {
 		this.mRocket = null;
 		this.mRocketMask = null;
 		this.mSpeakerSnd = null;
+		this.mAfforHand = null;
 
 		const bg = new PIXI.Sprite(
 			ResourceManager.Handle.getCommon(
@@ -272,7 +274,7 @@ export class Game1 extends GameModule {
 		await PhonicsApp.Handle.controller.settingGuideSnd(
 			ResourceManager.Handle.getCommon('guide/game_1.mp3').sound,
 		);
-		await PhonicsApp.Handle.controller.startGuide();
+
 		// 카드생성
 		await this.createExamCard();
 		for (const card of this.mExamAry) {
@@ -284,7 +286,8 @@ export class Game1 extends GameModule {
 			}
 		}
 		// 각 카드 위치 지정
-		await this.setCardPos();
+		this.setCardPos();
+		// await this.setCardPos();
 		// 카드 클릭했을때,
 		await this.registCardEvent();
 		// 스텝(별) 생성
@@ -292,27 +295,27 @@ export class Game1 extends GameModule {
 
 		// 로켓 생성 및 시간설정
 		await this.createRocket();
+
+		await PhonicsApp.Handle.controller.startGuide();
 	}
 
 	async onStart() {
+		this.mSpeakerBtn.interact(false);
 		this.mSpeakerBtn.onPointerTap = async () => {
 			if (!this.mSpeakerSnd) {
 				return;
 			}
-			this.mSpeakerBtn.interact(false);
-			this.mSpeakerSnd.stop();
-			this.mSpeakerSnd.play();
-			gsap.delayedCall(this.mSpeakerSnd.duration, () => {
-				this.mSpeakerBtn.interact(true);
-			});
+
+			await this.afforFuction('click');
 		};
 
-		this.speakerAffor();
+		await this.speakerAffor();
 
 		await this.cardInteraction(true);
+		this.mSpeakerBtn.interact(true);
 		this.startRocket();
 
-		this.affordanceCorrect();
+		await this.registAffordance();
 	}
 
 	// -----------------------------------------------------------진행바(별스텝)
@@ -328,15 +331,21 @@ export class Game1 extends GameModule {
 	nextStar() {
 		this.mStarBar.onStar(this.mModuleStep);
 		this.mModuleStep += 1;
+	}
 
-		for (const card of this.mExamAry) {
-			if (card.isCorrect) {
-				this.mSpeakerSnd = ResourceManager.Handle.getCommon(
-					`${Config.subjectNum}_${card.text}.mp3`,
-				).sound;
-				break;
+	// 정답 스피커 사운드 교체
+	private nextSound(): Promise<void> {
+		return new Promise<void>(resolve => {
+			for (const card of this.mExamAry) {
+				if (card.isCorrect) {
+					this.mSpeakerSnd = ResourceManager.Handle.getCommon(
+						`${Config.subjectNum}_${card.text}.mp3`,
+					).sound;
+					break;
+				}
 			}
-		}
+			resolve();
+		});
 	}
 
 	// -----------------------------------------------------------로켓
@@ -515,16 +524,17 @@ export class Game1 extends GameModule {
 	private async registCardEvent() {
 		for (const box of this.mExamAry) {
 			box.onPointerTap = async () => {
-				// 4초 후에도 카드 클릭이 없으면 어포던스실행
-				this.affordanceCorrect();
+				await this.resetAffor();
+				this.cardInteraction(false);
+				this.mSpeakerBtn.interact(false);
 
 				// 카드 클릭하면 로켓 일시정지
 				this.resumeRocketTime(false);
 
-				this.cardInteraction(false);
-
 				if (box.isCorrect) {
+					this.mSpeakerSnd = null;
 					await box.correct();
+					await this.nextSound();
 					this.nextStar();
 				} else {
 					this.shakeCorrectCard();
@@ -533,10 +543,14 @@ export class Game1 extends GameModule {
 
 				await this.checkEndGame();
 
-				this.cardInteraction(true);
-
 				// 카드 클릭하면 로켓 재시작
 				this.resumeRocketTime(true);
+
+				// 4초 후에도 카드 클릭이 없으면 어포던스실행
+				this.registAffordance();
+
+				this.cardInteraction(true);
+				this.mSpeakerBtn.interact(true);
 			};
 		}
 	}
@@ -554,7 +568,7 @@ export class Game1 extends GameModule {
 		}
 	}
 
-	// -----------------------------------------------------------어포던스
+	// 4초주기로 정답카드를 흔들어 주는 모션 코드
 	private shakeCorrectCard(): Promise<void> {
 		return new Promise<void>(resolve => {
 			for (const correct of this.mCorrectCardAry) {
@@ -565,62 +579,95 @@ export class Game1 extends GameModule {
 					timeline.to(correct, { angle: 0, duration: 0.15 });
 				}
 			}
-			gsap.delayedCall(0.5, () => {
+			let duration = 1;
+			if (this.mAfforSnd) {
+				this.mAfforSnd.play();
+				duration = this.mAfforSnd.duration + 1;
+			}
+			gsap.delayedCall(duration, () => {
 				resolve();
 			});
 		});
 	}
 
 	// 4초 주기로 아무 클릭없으면 정답 흔들림
-	private async affordanceCorrect() {
+	private async registAffordance() {
 		await this.resetAffor();
 
 		this.mAffordance = gsap.delayedCall(4, async () => {
-			this.mAfforSnd.play();
-			this.speakerAffor();
-			await this.shakeCorrectCard();
-			this.affordanceCorrect();
+			await this.afforFuction();
 		});
 	}
 
-	speakerAffor() {
-		// 클릭 어포던스 이미지 생성
-		let hand = new PIXI.Sprite(
-			ResourceManager.Handle.getCommon('click.png').texture,
-		);
-		this.addChild(hand);
-		hand.anchor.set(0.5);
-		hand.position.set(this.mSpeakerBtn.x, this.mSpeakerBtn.y);
-		gsap
-			.to(hand.scale, { x: 0.8, y: 0.8, duration: 0.5, ease: Power0.easeNone })
-			.repeat(-1)
-			.yoyo(true);
-
+	// 어포던스가 실행될때 ,
+	private async afforFuction(mode?: string) {
 		this.mSpeakerBtn.interact(false);
-		this.mSpeakerSnd.play();
-		gsap.delayedCall(this.mSpeakerSnd.duration, () => {
-			gsap.killTweensOf(hand);
-			this.removeChild(hand);
-			hand = null;
-			this.mSpeakerBtn.interact(true);
+		this.resumeRocketTime(false);
+		await this.resetAffor();
+		mode ? this.speakerAffor(mode) : this.speakerAffor();
+		await this.shakeCorrectCard();
+		this.resumeRocketTime(true);
+		this.mSpeakerBtn.interact(true);
+		this.registAffordance();
+	}
+
+	// 스피커 위에 손올려두고 사운드 재생
+	speakerAffor(mode?: string): Promise<void> {
+		return new Promise<void>(resolve => {
+			// 클릭 어포던스 이미지 생성
+			if (this.mAfforHand) {
+				this.removeChild(this.mAfforHand);
+				this.mAfforHand = null;
+			}
+			if (mode != 'click') {
+				this.mAfforHand = new PIXI.Sprite(
+					ResourceManager.Handle.getCommon('click.png').texture,
+				);
+				this.addChild(this.mAfforHand);
+				this.mAfforHand.anchor.set(0.5);
+				this.mAfforHand.position.set(this.mSpeakerBtn.x, this.mSpeakerBtn.y);
+				gsap
+					.to(this.mAfforHand.scale, {
+						x: 0.8,
+						y: 0.8,
+						duration: 0.5,
+						ease: Power0.easeNone,
+					})
+					.repeat(-1)
+					.yoyo(true);
+			}
+
+			this.mSpeakerSnd.play();
+			gsap.delayedCall(this.mSpeakerSnd.duration, () => {
+				if (this.mAfforHand) {
+					gsap.killTweensOf(this.mAfforHand);
+					this.removeChild(this.mAfforHand);
+					this.mAfforHand = null;
+				}
+				resolve();
+			});
 		});
 	}
 
+	// 4초 이전에 클릭이 있으면 어포던스함수 초기화
 	private async resetAffor() {
-		if (this.mAffordance) {
-			this.mAffordance.kill();
-		}
+		this.mAffordance ? this.mAffordance.kill() : null;
 		this.mAffordance = null;
 		await this.resetCardMotion();
 	}
 
-	private resetCardMotion() {
-		for (const correct of this.mCorrectCardAry) {
-			gsap.killTweensOf(correct);
-			correct.angle = 0;
-		}
+	// 흔들리는 도중에 모션이 취소 됐을시, 카드각도 초기화
+	private resetCardMotion(): Promise<void> {
+		return new Promise<void>(resolve => {
+			for (const card of this.mExamAry) {
+				gsap.killTweensOf(card);
+				card.angle = 0;
+			}
+			resolve();
+		});
 	}
 
+	// 어포던스 종료 및 삭제
 	private destroyAffor(): Promise<void> {
 		return new Promise<void>(resolve => {
 			if (this.mAffordance) {
@@ -628,7 +675,7 @@ export class Game1 extends GameModule {
 			}
 			this.mAffordance = null;
 			this.mAfforSnd = null;
-			this.affordanceCorrect = () => null;
+			this.registAffordance = () => null;
 			resolve();
 		});
 	}

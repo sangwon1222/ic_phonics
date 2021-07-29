@@ -18,6 +18,7 @@ export class Chant extends SceneBase {
 		super('chant');
 	}
 	async onInit() {
+		// 로딩 화면 켜주기
 		await PhonicsApp.Handle.loddingFlag(true);
 
 		/**
@@ -27,11 +28,17 @@ export class Chant extends SceneBase {
 		this.prevNextBtn.onClickNext = async () => null;
 		this.prevNextBtn.onClickPrev = async () => null;
 
+		// 액티비티 인덱스
 		Config.currentMode = 0;
+		// 액티비티 모듈 인덱스
 		Config.currentIdx = 0;
 
+		// 왼, 오른쪽 버튼 초기화
 		await this.resetBtn();
+		// chant가 0번째 액티비티이므로 이전버튼 비활성화
 		this.prevNextBtn.disableBtn('prev');
+		// 학습모드일때
+		// chant를 완료하지 못했으면 다음버튼 비활성화
 		if (!Config.isFreeStudy) {
 			const completedData = this.controller.studyed[0].completed.module1;
 			if (!completedData) {
@@ -39,10 +46,16 @@ export class Chant extends SceneBase {
 			}
 		}
 
+		// game2 _ module2의 ticker가 살아 있을 수 있으니, 있으면 제거//
 		if (window['ticker']) gsap.ticker.remove(window['ticker']);
+
+		// stage 초기화
 		this.removeChildren();
+
+		// scenebase 공통 함수 => 액티비티 테두리 부분 둥글게
 		await this.createDimmed();
 
+		// 자유모드 , 학습모드 분기
 		if (Config.isFreeStudy) {
 			this.prevNextBtn.onClickNext = async () => {
 				await this.goScene('sound');
@@ -62,17 +75,7 @@ export class Chant extends SceneBase {
 
 	async onStart() {
 		await this.settingVideo();
-		await PhonicsApp.Handle.loddingFlag(false);
-
 		await this.loadGuideSnd();
-		// const title = gameData[`day${config.subjectNum}`].title.toLowerCase();
-		// console.log(`title/chant_${title}_${config.subjectNum}.mp3`);
-		// await ResourceManager.Handle.loadCommonResource({
-		// 	sounds: [`title/chant_b_1.mp3`],
-		// });
-		// this.mGuideSnd = ResourceManager.Handle.getCommon(
-		// 	`title/chant_b_1.mp3`,
-		// ).sound;
 
 		this.interactive = true;
 		const clickEffect = new PIXI.spine.Spine(
@@ -97,6 +100,7 @@ export class Chant extends SceneBase {
 			});
 		});
 
+		await PhonicsApp.Handle.loddingFlag(false);
 		await this.startGuide();
 		await this.mVideoControll.onInit();
 	}
@@ -216,6 +220,8 @@ export class Chant extends SceneBase {
 			};
 
 			video.oncanplay = async () => {
+				video.oncanplay = () => null;
+
 				this.mVideoSprite = new PIXI.Sprite();
 				this.mVideoSprite.texture = PIXI.Texture.from(video);
 				this.mVideoSprite.width = config.width;
@@ -223,11 +229,10 @@ export class Chant extends SceneBase {
 				this.mVideoSprite.y = config.height - config.width / 1.777 + 18;
 				video.currentTime = 0;
 				video.pause();
-				video.oncanplay = () => null;
 
 				this.mVideoControll = new VideoControll();
-				this.addChild(this.mVideoSprite, this.mVideoControll);
 
+				this.addChild(this.mVideoSprite, this.mVideoControll);
 				resolve();
 			};
 		});

@@ -41,6 +41,7 @@ export class LabelBtn extends PIXI.Sprite {
 		).texture;
 		this.texture = this.mOff;
 
+		this.roundPixels = true;
 		// this.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
 		this.interactive = false;
@@ -74,6 +75,10 @@ export class LabelBtn extends PIXI.Sprite {
 		if (PhonicsApp.Handle.currectSceneName == this.mLabel) {
 			return;
 		}
+		if (!Config.isFreeStudy && !this.mCompleted) {
+			return;
+		}
+
 		// 전체 라벨을 비활성화 한 뒤,
 		await (this.parent as Controller).labelDisable();
 		// 해당 라벨만 활성화 하고.

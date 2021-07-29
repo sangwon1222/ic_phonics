@@ -1,4 +1,4 @@
-const devMode = false; // ******* 주의! 개발자 모드일 경우 true, 실서비스 모드일 경우 flase 로 바꿔줄것! *******
+const devMode = true; // ******* 주의! 개발자 모드일 경우 true, 실서비스 모드일 경우 flase 로 바꿔줄것! *******
 
 export default {
 	devMode: devMode, // 개발자 모드, 실서비스 모드 구분을 나타낸다.

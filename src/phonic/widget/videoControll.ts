@@ -3,6 +3,7 @@ import * as PIXI from 'pixi.js';
 import gsap from 'gsap/all';
 import { ResourceManager } from '../core/resourceManager';
 import config from '../../com/util/Config';
+import { isIOS } from '../utill/gameUtil';
 
 export class Btn extends PIXI.Sprite {
 	private mOnTexture: PIXI.Texture;
@@ -358,10 +359,14 @@ export class VideoControll extends PIXI.Container {
 		window['video_controller'] = this;
 		this.registDelay();
 		await this.createDimmed();
+		await this.createUnderBar();
 		await this.mUnderBar.onInit();
-		this.addChild(this.mDimmed, this.mUnderBar);
+
 		await this.hide();
-		await this.createPlayBtn();
+		isIOS() ? await this.createPlayBtn() : window['video'].play();
+
+		this.mDimmed.interactive = true;
+		this.mUnderBar.interactive = true;
 	}
 
 	destroyDelay(): Promise<void> {
@@ -380,6 +385,25 @@ export class VideoControll extends PIXI.Container {
 		});
 	}
 
+	private createUnderBar(): Promise<void> {
+		return new Promise<void>(resolve => {
+			this.mUnderBar = new UnderBar();
+			this.mUnderBar.y = config.height - 80;
+
+			this.mUnderBar
+				.on('pointerdown', async () => {
+					await this.registDelay();
+				})
+				.on('pointerup', async () => {
+					await this.registDelay();
+				});
+
+			this.addChild(this.mUnderBar);
+
+			resolve();
+		});
+	}
+
 	private createDimmed(): Promise<void> {
 		return new Promise<void>(resolve => {
 			this.mDimmed = new PIXI.Graphics();
@@ -389,18 +413,6 @@ export class VideoControll extends PIXI.Container {
 			this.mDimmed.y = 64;
 			this.mDimmed.alpha = 0;
 
-			this.mUnderBar = new UnderBar();
-			this.mUnderBar.y = config.height - 80;
-
-			this.mUnderBar.interactive = true;
-			this.mUnderBar
-				.on('pointerdown', async () => {
-					await this.registDelay();
-				})
-				.on('pointerup', async () => {
-					await this.registDelay();
-				});
-
 			this.mDimmed.on('pointertap', async () => {
 				if (this.mUnderBar.underBarMode) {
 					await this.hide();
@@ -408,6 +420,8 @@ export class VideoControll extends PIXI.Container {
 					await this.show();
 				}
 			});
+
+			this.addChild(this.mDimmed);
 
 			resolve();
 		});

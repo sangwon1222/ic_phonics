@@ -31,6 +31,16 @@ export function shuffleArray(a: Array<any>) {
 	}
 	return a;
 }
+
+export function isIOS() {
+	const toMatch = [/Macintosh/i, /iPhone/i, /iPad/i, /iPod/i];
+	// // console.log(navigator.userAgent)
+	return toMatch.some(toMatchItem => {
+		// alert( toMatchItem+":"+navigator.userAgent+":"+navigator.userAgent.match(toMatchItem) )
+		return navigator.userAgent.match(toMatchItem);
+	});
+}
+
 // 컨테이너나 스프라이트 등 라인 그리는 함수
 export function debugLine(target: any, color?: number) {
 	const debug = new PIXI.Graphics();
