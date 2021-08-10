@@ -6,8 +6,7 @@ import config from '../../com/util/Config';
 import { shuffleArray } from '../utill/gameUtil';
 import { gameData } from '../core/resource/product/gameData';
 import Config from '../../com/util/Config';
-import { Eop } from '../widget/eop';
-import { App } from '@/com/core/App';
+import pixiSound from 'pixi-sound';
 
 const chaPos = [
 	{ x: 110, y: 444 },
@@ -27,6 +26,7 @@ const shadowPos = [
 ];
 
 export class Intro extends SceneBase {
+	private mBGM: PIXI.sound.Sound;
 	private mTitle: PIXI.Sprite;
 
 	private mCharacterAry: Array<PIXI.Sprite>;
@@ -35,25 +35,34 @@ export class Intro extends SceneBase {
 		super('intro');
 	}
 	async onInit() {
-		window['currentAlphabet'] = new Audio(
-			`${config.restAPI}viewer/sounds/title/${
-				gameData[`day${Config.subjectNum}`].title
-			}_${config.subjectNum}.mp3`,
-		);
-		// 'title/' + gameData[`day${Config.subjectNum}`].title + `.mp3`,
+		pixiSound.stopAll();
+		if (this.mBGM) {
+			this.mBGM.pause();
+		}
+		this.mBGM = null;
 
+		let url = '';
+		Config.restAPIProd.slice(-2) == 'g/'
+			? (url = `${Config.restAPIProd}ps_phonics/viewer/sounds/title/${
+					gameData[`day${Config.subjectNum}`].title
+			  }_${config.subjectNum}.mp3`)
+			: (url = `${Config.restAPIProd}viewer/sounds/title/${
+					gameData[`day${Config.subjectNum}`].title
+			  }_${config.subjectNum}.mp3`);
+
+		window['currentAlphabet'] = new Audio(url);
 		PhonicsApp.Handle.controllerVisible(false);
 
-		window.onkeydown = async (evt: KeyboardEvent) => {
-			if (evt.key == '+') {
-				if (this.sceneName == 'intro') {
-					await this.goScene('chant');
-					window.onkeydown = () => null;
-				} else {
-					window.onkeydown = () => null;
-				}
-			}
-		};
+		// window.onkeydown = async (evt: KeyboardEvent) => {
+		// 	if (evt.key == '+') {
+		// 		if (this.sceneName == 'intro') {
+		// 			await this.goScene('chant');
+		// 			window.onkeydown = () => null;
+		// 		} else {
+		// 			window.onkeydown = () => null;
+		// 		}
+		// 	}
+		// };
 	}
 
 	async onStart() {
@@ -75,12 +84,10 @@ export class Intro extends SceneBase {
 		}
 		console.log(`인트로가 끝나면 [${moveScene}] 씬으로 이동.`);
 
-		const bgm = ResourceManager.Handle.getCommon('intro_bgm.mp3').sound;
-		bgm.play();
-		bgm.volume = 0;
-		gsap.to(bgm, { volume: 1, duration: 4 });
+		this.mBGM = ResourceManager.Handle.getCommon('intro_bgm.mp3').sound;
+		this.mBGM.play();
 
-		gsap.delayedCall(bgm.duration, async () => {
+		gsap.delayedCall(this.mBGM.duration, async () => {
 			await this.goScene(moveScene);
 		});
 		await this.playChaMotion();
@@ -174,6 +181,7 @@ export class Intro extends SceneBase {
 	// 실행 함수============================================
 	private readAlphabet(): Promise<void> {
 		return new Promise<void>(resolve => {
+			pixiSound.resumeAll();
 			let titleSnd = ResourceManager.Handle.getCommon('title_phonics.mp3')
 				.sound;
 			titleSnd.play();
@@ -197,22 +205,10 @@ export class Intro extends SceneBase {
 			const rAry = [0, 1, 2, 3, 4, 5];
 			const random = shuffleArray(rAry);
 
-			for (let i = 0; i < 6; i++) {
+			for (let i = 0; i < random.length; i++) {
 				const index = random[i];
-				gsap
-					.to(this.mCharacterAry[index], {
-						alpha: 1,
-						y: chaPos[index].y,
-						duration: 0.5,
-						ease: 'bounce',
-					})
-					.delay(i / 2)
-					.eventCallback('onComplete', () => {
-						i == 5 ? resolve() : null;
-					});
-			}
-			for (let i = 0; i < 6; i++) {
-				const index = random[i];
+
+				// 그림자 모션
 				gsap
 					.to(this.mShadowAry[index].scale, {
 						x: 1,
@@ -229,6 +225,19 @@ export class Intro extends SceneBase {
 						ease: 'bounce',
 					})
 					.delay(i / 2 - 0.2);
+
+				// 캐릭터 모션
+				gsap
+					.to(this.mCharacterAry[index], {
+						alpha: 1,
+						y: chaPos[index].y,
+						duration: 0.5,
+						ease: 'bounce',
+					})
+					.delay(i / 2)
+					.eventCallback('onComplete', () => {
+						i == 5 ? resolve() : null;
+					});
 			}
 		});
 	}

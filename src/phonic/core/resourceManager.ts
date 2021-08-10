@@ -28,8 +28,10 @@ export class ResourceManager {
 	private mProduct: {};
 
 	constructor() {
-		// this.mURLRoot = Config.restAPI;
-		this.mURLRoot = `${Config.restAPIProd}ps_phonics/`;
+		Config.restAPIProd.slice(-2) == 'g/'
+			? (this.mURLRoot = `${Config.restAPIProd}ps_phonics/`)
+			: (this.mURLRoot = `${Config.restAPIProd}`);
+
 		this.mCommon = {};
 		this.mViewer = {};
 		this.mProduct = {};

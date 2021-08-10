@@ -155,139 +155,57 @@ export default {
 	},
 
 	subjectData: [
-		`B`, //1
-		`P`, //2
-		`F`, //3
-		`V`, //4
-		`S`, //5
-		`Z`, //6
-		`D`, //7
-		`T`, //8
-		`L`, //9
-		`R`, //10
-		`K`, //11
-		`C`, //12
-		`N`, //13
-		`M`, //14
-		`G`, //15
-		`W`, //16
-		`H`, //17
-		`X`, //18
-		`J`, //19
-		`Qu`, //20
-		`Y`, //21
-		`I`, //22
-		`A`, //23
-		`E`, //24
-		`O`, //25
-		`U`, //26
+		`b`, //1
+		`p`, //2
+		`f`, //3
+		`v`, //4
+		`s`, //5
+		`z`, //6
+		`d`, //7
+		`t`, //8
+		`l`, //9
+		`r`, //10
+		`k`, //11
+		`c`, //12
+		`n`, //13
+		`m`, //14
+		`g`, //15
+		`w`, //16
+		`h`, //17
+		`x`, //18
+		`j`, //19
+		`qu`, //20
+		`y`, //21
+		`i`, //22
+		`a`, //23
+		`e`, //24
+		`o`, //25
+		`u`, //26
 		`a_e`, //27
 		`i_e`, //28
 		`o_e`, //29
 		`u_e`, //30
-		`TH`, //31
-		`Sh`, //32
-		`NG`, //33
-		`Ch`, //34
-		`CK`, //35
-		`NK`, //36
-		`PH`, //37
-		`EE`, //38
-		`EA`, //39
-		`AI`, //40
-		`OO`, //41
-		`AU`, //42
-		`EA`, //43
-		`AY`, //44
-		`OA`, //45
-		`OU`, //46
-		`Y`, //47
-		`ER`, //48
-		`OR`, //49
-		`UR`, //50
-		`C`, //51
-		`G`, //52
+		`th`, //31
+		`sh`, //32
+		`ng`, //33
+		`ch`, //34
+		`ck`, //35
+		`nk`, //36
+		`ph`, //37
+		`ee`, //38
+		`ea`, //39
+		`ai`, //40
+		`oo`, //41
+		`au`, //42
+		`ea`, //43
+		`ay`, //44
+		`oa`, //45
+		`ou`, //46
+		`y`, //47
+		`er`, //48
+		`or`, //49
+		`ur`, //50
+		`c`, //51
+		`g`, //52
 	],
-	skinblocks: [
-		{
-			first: {
-				nineslice: [30, 30, 30, 30],
-				startblank: 20,
-				endblank: 30,
-				combineX: 18.5,
-			},
-			middle: {
-				nineslice: [30, 30, 30, 30],
-				startblank: 40,
-				endblank: 40,
-				combineX: 18.5,
-			},
-			last: {
-				nineslice: [30, 30, 30, 30],
-				startblank: 30,
-				endblank: 30,
-				combineX: 18.5,
-			},
-			back: {
-				nineslice: [30, 30, 30, 30],
-				startblank: 30,
-				endblank: 30,
-				combineX: 18.5,
-			},
-		},
-		{
-			first: {
-				nineslice: [50, 50, 50, 50],
-				startblank: 50,
-				endblank: 50,
-				combineX: 35.5,
-			},
-			middle: {
-				nineslice: [50, 50, 50, 50],
-				startblank: 50,
-				endblank: 50,
-				combineX: 35.5,
-			},
-			last: {
-				nineslice: [50, 50, 50, 50],
-				startblank: 50,
-				endblank: 50,
-				combineX: 35,
-			},
-			back: {
-				nineslice: [50, 50, 50, 50],
-				startblank: 50,
-				endblank: 50,
-				combineX: 35.5,
-			},
-		},
-		{
-			first: {
-				nineslice: [50, 30, 10, 30],
-				startblank: 40,
-				endblank: 20,
-				combineX: 0,
-			},
-			middle: {
-				nineslice: [10, 30, 50, 30],
-				startblank: 40,
-				endblank: 40,
-				combineX: 0,
-			},
-			last: {
-				nineslice: [10, 30, 50, 30],
-				startblank: 20,
-				endblank: 40,
-				combineX: 0,
-			},
-			back: {
-				nineslice: [50, 30, 50, 30],
-				startblank: 30,
-				endblank: 30,
-				combineX: 0,
-			},
-		},
-	],
-	// wordsActBg: '',
-	// activityTwoBg: '',
 };

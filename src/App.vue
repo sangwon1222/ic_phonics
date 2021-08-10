@@ -52,11 +52,9 @@ export default class App extends Vue {
 	//getInitVariables 호출을 나타낸다.
 	async getInitInfo() {
 		if (window['Android']) {
-			// const tData = window['Android'].getInitVariables();
 			const tData = await window['Android'].getInitVariables();
-			// console.log(JSON.stringify(tData));
 			Util.jsonToProperty(tData, Config.getInitVariable);
-			console.log(JSON.stringify(Config.getInitVariable));
+			window['$eco'] ? (Config.isHomeLearn = window['$eco'].isHomeLearn) : null;
 		}
 	}
 

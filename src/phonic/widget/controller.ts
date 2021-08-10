@@ -6,7 +6,8 @@ import config from '../../com/util/Config';
 import { Btn } from './btn';
 import Config from '../../com/util/Config';
 import { gameData } from '../core/resource/product/gameData';
-import { debugLine } from '../utill/gameUtil';
+import { isIOS } from '../utill/gameUtil';
+import pixiSound from 'pixi-sound';
 
 // 게임 라벨 , 클릭하면 해당 게임으로 이동한다.
 export class LabelBtn extends PIXI.Sprite {
@@ -27,12 +28,14 @@ export class LabelBtn extends PIXI.Sprite {
 	}
 
 	// 해당 게임 이름
+	private mLabel: string;
 	get label(): string {
 		return this.mLabel;
 	}
 
-	constructor(private mLabel: string) {
+	constructor(label: string) {
 		super();
+		this.mLabel = label;
 		this.mOn = ResourceManager.Handle.getCommon(
 			`${this.mLabel}_btn_on.png`,
 		).texture;
@@ -94,14 +97,6 @@ export class Character extends PIXI.Container {
 	get cha(): PIXI.Sprite {
 		return this.mCha;
 	}
-	private mGuideSnd: PIXI.sound.Sound;
-	set guideSnd(v: PIXI.sound.Sound) {
-		if (this.mGuideSnd) {
-			this.mGuideSnd.pause();
-			this.mGuideSnd = null;
-		}
-		this.mGuideSnd = v;
-	}
 
 	private mBubble: PIXI.Sprite;
 	private mBubbleAni: gsap.core.Timeline;
@@ -124,7 +119,9 @@ export class Character extends PIXI.Container {
 		this.createSpeech();
 
 		this.on('pointertap', async () => {
+			await (this.parent as Controller).clickBlock(true);
 			await this.onClickCharacter();
+			await (this.parent as Controller).clickBlock(false);
 		});
 
 		// 초기 인터렉션 활성화
@@ -177,18 +174,20 @@ export class Character extends PIXI.Container {
 			this.mBubbleMask.x = x;
 		}
 		this.mBubbleAni = gsap.timeline({ repeat: -1 });
-		this.mBubbleAni.to(this.mBubbleMask, { x: x, duration: 1 });
-		this.mBubbleAni.to(this.mBubbleMask, { x: x + 14, duration: 0 });
-		this.mBubbleAni.to(this.mBubbleMask, { x: x + 14, duration: 1 });
-		this.mBubbleAni.to(this.mBubbleMask, { x: x + 40, duration: 0 });
-		this.mBubbleAni.to(this.mBubbleMask, { x: x + 40, duration: 1 });
+		this.mBubbleAni
+			.to(this.mBubbleMask, { x: x, duration: 1 })
+			.to(this.mBubbleMask, { x: x + 14, duration: 0 })
+			.to(this.mBubbleMask, { x: x + 14, duration: 1 })
+			.to(this.mBubbleMask, { x: x + 40, duration: 0 })
+			.to(this.mBubbleMask, { x: x + 40, duration: 1 });
 	}
 
 	// 캐릭터 클릭하면 화면으로 나와서 설명하는 모션
-	async onClickCharacter(snd?: PIXI.sound.Sound) {
+	async onClickCharacter() {
 		// 이벤트 중복 피하기 위해 인터렉션을 끈다.
 		this.interactiveFlag(false);
 		// 모션 중
+
 		await this.guideMotion();
 
 		// 모션이 끝나면 다시 인터렉션을 켜준다.
@@ -202,20 +201,24 @@ export class Character extends PIXI.Container {
 			this.mBubble.visible = false;
 			this.mBubbleMask.visible = false;
 
-			if (this.mGuideSnd) {
-				this.mGuideSnd.play();
-				duration = this.mGuideSnd.duration;
+			pixiSound.resumeAll();
+
+			if (window['guide_snd']) {
+				window['guide_snd'].play();
+				duration = window['guide_snd'].duration + 1;
 			}
 
 			this.mCha.angle = 0;
-			// gsap.to(this.mCha, { angle: 0, duration: 0.5 });
 			gsap.to(this, { x: 100, duration: 0.3 });
 			gsap
-				.to(this.mCha, { angle: 24, duration: 0.6, ease: Power0.easeNone })
+				.to(this.mCha, {
+					angle: 24,
+					duration: 0.6,
+					ease: Power0.easeNone,
+				})
 				.yoyo(true)
 				.repeat(-1)
 				.delay(0.5);
-
 			gsap.delayedCall(duration, () => {
 				gsap.killTweensOf(this);
 				gsap.killTweensOf(this.mCha);
@@ -223,6 +226,8 @@ export class Character extends PIXI.Container {
 				gsap
 					.to(this, { x: 0, duration: 0.5 })
 					.eventCallback('onComplete', () => {
+						this.x = 0;
+						this.mCha.angle = 34;
 						this.mBubble.visible = true;
 						this.mBubbleMask.visible = true;
 						resolve();
@@ -288,11 +293,11 @@ export class PrevNextBtn extends PIXI.Container {
 		});
 	}
 
-	// 해당 게임 (chant, sound, game) 에서 overwhite
+	// 해당 게임 (chant, sound, game) 에서 override
 	onClickPrev() {
 		//
 	}
-	// 해당 게임 (chant, sound, game) 에서 overwhite
+	// 해당 게임 (chant, sound, game) 에서 override
 	onClickNext() {
 		//
 	}
@@ -409,6 +414,8 @@ export class Controller extends PIXI.Container {
 		return this.mStudyedStep;
 	}
 
+	private mClickBlock: PIXI.Graphics;
+
 	constructor() {
 		super();
 	}
@@ -447,6 +454,13 @@ export class Controller extends PIXI.Container {
 		this.mPrevNextBtn = new PrevNextBtn();
 		await this.mPrevNextBtn.onInit();
 		this.addChild(this.mPrevNextBtn);
+
+		this.mClickBlock = new PIXI.Graphics();
+		this.mClickBlock.beginFill(0x000000, 0.1);
+		this.mClickBlock.drawRect(0, 0, Config.width, Config.height);
+		this.mClickBlock.endFill();
+		this.mClickBlock.interactive = true;
+		this.mClickBlock.zIndex = 3;
 	}
 
 	private createStudyedStep(): Promise<void> {
@@ -487,7 +501,10 @@ export class Controller extends PIXI.Container {
 			resolve();
 		});
 	}
+
 	updateInfo() {
+		this.mBGMSprite.visible = false;
+
 		this.mTitleText.text = `${Config.subjectNum}장`;
 		this.mTitleText.pivot.set(
 			this.mTitleText.width / 2,
@@ -506,26 +523,89 @@ export class Controller extends PIXI.Container {
 		this.mCha = new Character();
 		this.addChild(this.mCha);
 		this.mCha.position.set(0, 260 - 20);
+		this.mCha.zIndex = 4;
+	}
+
+	clickBlock(flag: boolean) {
+		flag ? this.addChild(this.mClickBlock) : this.removeChild(this.mClickBlock);
+		window['rocket_timer'] ? window['rocket_timer'](!flag) : null;
 	}
 
 	async startGuide() {
-		await this.mCha.onClickCharacter();
+		if (isIOS()) {
+			await this.iosDirection();
+		} else {
+			await this.mCha.onClickCharacter();
+		}
 	}
 
-	settingGuideSnd(snd: PIXI.sound.Sound): Promise<void> {
+	iosDirection(): Promise<void> {
 		return new Promise<void>(resolve => {
-			this.mCha.guideSnd = snd;
-			resolve();
+			let dimmed = new PIXI.Graphics();
+			dimmed.beginFill(0x000000, 0.8);
+			dimmed.drawRect(0, 0, Config.width, Config.height);
+			dimmed.endFill();
+			this.addChild(dimmed);
+			dimmed.zIndex = 4;
+
+			let hand = new PIXI.Sprite(
+				ResourceManager.Handle.getCommon(`click.png`).texture,
+			);
+			hand.anchor.set(0.5);
+			hand.position.set(Config.width / 2, Config.height / 2);
+			hand.scale.set(1.6);
+			dimmed.addChild(hand);
+
+			let hanMotion = gsap.timeline({ repeat: -1, repeatDelay: 1 });
+			hanMotion
+				.to(hand, { alpha: 1, duration: 0.25 })
+				.to(hand.scale, { x: 1, y: 1, duration: 0.5 })
+				.to(hand, { alpha: 0, duration: 0.25 });
+
+			dimmed.interactive = true;
+			dimmed.buttonMode = true;
+			dimmed.on('pointertap', async () => {
+				hanMotion.kill();
+				hanMotion = null;
+				gsap.killTweensOf(hand);
+				dimmed.removeChild(hand);
+				hand = null;
+				this.removeChild(dimmed);
+				dimmed = null;
+				await this.mCha.onClickCharacter();
+				resolve();
+			});
+		});
+	}
+
+	settingGuideSnd(snd: string): Promise<void> {
+		return new Promise<void>(resolve => {
+			if (window['guide_snd']) {
+				window['guide_snd'].pause();
+				window['guide_snd'] = null;
+			}
+
+			let url = '';
+			Config.restAPIProd.slice(-2) == 'g/'
+				? (url = `${Config.restAPIProd}ps_phonics/viewer/sounds/${snd}`)
+				: (url = `${Config.restAPIProd}viewer/sounds/${snd}`);
+			window['guide_snd'] = new Audio(url);
+			window['guide_snd'].onloadedmetadata = () => {
+				window['guide_snd'].onloadedmetadata = () => null;
+				resolve();
+			};
 		});
 	}
 
 	// 캐릭터 위치 , 이전다음버튼 리셋
 	async reset() {
+		this.mBGMSprite.visible = false;
+		this.mBGMBtn.interactive = true;
 		PhonicsApp.Handle.currectSceneName == 'chant'
 			? (this.mCha.visible = false)
 			: (this.mCha.visible = true);
 
-		if (this.mPrevNextBtn) await this.mPrevNextBtn.resetBtn();
+		this.mPrevNextBtn ? await this.mPrevNextBtn.resetBtn() : null;
 		this.mCha.position.set(0, 260 - 20);
 		this.mCha.reset();
 		this.mCha.bubble();
@@ -534,6 +614,11 @@ export class Controller extends PIXI.Container {
 
 	// 캐릭터 위치 , 이전다음버튼 리셋
 	async outro() {
+		if (window['guide_snd']) {
+			window['guide_snd'].pause();
+			window['guide_snd'].currentTime = 0;
+		}
+		this.clickBlock(false);
 		this.mCha.position.set(-200, 260 - 20);
 		this.mCha.interactiveFlag(false);
 	}
@@ -581,15 +666,15 @@ export class Controller extends PIXI.Container {
 
 				this.mBGMSprite.visible = true;
 				if (this.mBGMflag) {
-					// window['bgm'].play();
-					window['bgm'].volume = 1;
+					window['bgm'].muted = false;
+					isIOS() ? window['bgm'].play() : null;
 					this.mBGMSprite.texture = ResourceManager.Handle.getCommon(
 						'big_sound_on.png',
 					).texture;
 					this.mBGMSprite.anchor.set(0.5);
 				} else {
-					// window['bgm'].pause();
-					window['bgm'].volume = 0;
+					window['bgm'].muted = true;
+					isIOS() ? window['bgm'].pause() : null;
 					this.mBGMSprite.texture = ResourceManager.Handle.getCommon(
 						'big_sound_off.png',
 					).texture;

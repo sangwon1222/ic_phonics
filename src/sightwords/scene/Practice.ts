@@ -655,7 +655,7 @@ export class Practice extends SceneBase {
 				'camera_on_box.png'
 			];
 
-			if (Config.mobile) {
+			if (Config.mobile && Config.isHomeLearn) {
 				this.mVideoCam.onStart(
 					609, // 929 - 640 / 2,
 					91.5, // 331.5 - 480 / 2,
@@ -868,6 +868,10 @@ export class Practice extends SceneBase {
 
 	//액티비티 클리어 했을때의 처리를 나타낸다.
 	private async clearActivity() {
+		if (!Config.isHomeLearn) {
+			this.mVideoCam?.onEnd();
+		}
+
 		SoundManager.Handle.stopAll();
 		this.mSpeechBubbleSp.visible = false;
 		this.dispatchEvent(EventType.ReceiveData, 'ClearMode');

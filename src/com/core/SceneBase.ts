@@ -24,7 +24,7 @@ export class SceneBase extends ObjectBase {
 		this.visible = false;
 	}
 
-	// override ----------------------------------------
+	// override function ----------------------------------------
 	async onInit() {
 		//
 	}

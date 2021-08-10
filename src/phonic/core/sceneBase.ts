@@ -49,10 +49,11 @@ export class SceneBase extends PIXI.Container {
 			PhonicsApp.Handle.controllerVisible(true);
 
 			const bg = new PIXI.Graphics();
-			bg.beginFill(0xffffff, 1);
+			bg.beginFill(0x6c6c6c, 1);
 			bg.drawRect(0, 0, config.width, config.height - 64);
 			bg.endFill();
 			bg.y = 64;
+
 			const edge = new PIXI.NineSlicePlane(
 				ResourceManager.Handle.getCommon('edge.png').texture,
 				25,
@@ -65,18 +66,17 @@ export class SceneBase extends PIXI.Container {
 			edge.y = 64;
 
 			this.addChild(bg, edge);
+
 			this.sortableChildren = true;
 			edge.zIndex = 6;
+
 			resolve();
 		});
 	}
 
-	// 버튼 초기화
-	resetBtn(): Promise<void> {
-		return new Promise<void>(resolve => {
-			PhonicsApp.Handle.controller.reset();
-			resolve();
-		});
+	// 버튼/가이드캐릭터 초기화
+	async resetBtn() {
+		await PhonicsApp.Handle.controller.reset();
 	}
 
 	// 다음 버튼이 깜빡이는 효과
@@ -91,10 +91,11 @@ export class SceneBase extends PIXI.Container {
 
 	async onEnd() {
 		await gsap.globalTimeline.clear();
-		if (window['video']) {
+		if (window['video'] && !!window['video'].paused) {
 			window['video'].pause();
-			window['video'] = null;
 		}
+		window['video'] = null;
+
 		this.removeChildren();
 	}
 }

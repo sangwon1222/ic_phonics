@@ -6,7 +6,7 @@ import { gameData } from '@/phonic/core/resource/product/gameData';
 import { shuffleArray } from '@/com/util/Util';
 import { Game } from './game';
 import Config from '@/com/util/Config';
-import { debugLine } from '@/phonic/utill/gameUtil';
+import { isIOS } from '@/phonic/utill/gameUtil';
 import { StarBar } from '@/phonic/widget/star';
 import { Eop } from '@/phonic/widget/eop';
 import pixiSound from 'pixi-sound';
@@ -36,13 +36,15 @@ export class Bag extends PIXI.Sprite {
 		this.mAbleSpaceFlag = v;
 	}
 
-	constructor(
-		private quizTexture: string,
-		private mText: string,
-		private mVariationIdx: number,
-	) {
-		super();
+	private quizTexture: string;
+	private mText: string;
+	private mVariationIdx: number;
 
+	constructor(quizTexture: string, text: string, variationIdx: number) {
+		super();
+		this.quizTexture = quizTexture;
+		this.mText = text;
+		this.mVariationIdx = variationIdx;
 		this.mAbleSpaceFlag = true;
 
 		this.texture = ResourceManager.Handle.getCommon(
@@ -246,19 +248,19 @@ export class Game2 extends GameModule {
 	}
 
 	async onInit() {
+		this.removeChildren();
+		!isIOS() ? (window['bgm'].volume = 1) : null;
 		Config.currentMode = 2;
 		Config.currentIdx = 1;
 
-		this.mVariationIdx = Math.ceil(Math.random() * 3);
-		// this.mVariationIdx = 2;
-		console.group(
-			`%c Game__2 _variation :`,
-			'color:#fff;background:#000;font-weight:800;padding-right:20px;',
-		);
+		const variationCount = 3;
+		this.mVariationIdx = Math.ceil(Math.random() * variationCount);
+
+		console.groupCollapsed(`[ ${this.moduleName} ] 베리에이션 인덱스 `);
 		console.log(
 			`[%c now: ${this.mVariationIdx}`,
 			'color: red; font-weight:800;',
-			']/ total: 3 ',
+			`]/ total: ${variationCount} `,
 		);
 		console.groupEnd();
 
@@ -279,46 +281,11 @@ export class Game2 extends GameModule {
 			).texture,
 		);
 		this.addChild(bg);
-
-		const fastBtn = new PIXI.Graphics();
-		fastBtn.beginFill(0x00ff00, 1);
-		fastBtn.drawRect(0, 0, 300, 100);
-		fastBtn.endFill();
-		bg.addChild(fastBtn);
-		fastBtn.alpha = 0;
-		fastBtn.interactive = true;
-		let flag = false;
-		fastBtn
-			.on('pointerdown', () => {
-				flag = true;
-				this.mSpeed = 20;
-			})
-			.on('pointermove', () => {
-				if (!flag) {
-					return;
-				}
-				this.mSpeed = 20;
-			})
-			.on('pointerup', () => {
-				flag = false;
-				this.mSpeed = 1;
-			})
-			.on('pointerout', () => {
-				flag = false;
-				this.mSpeed = 1;
-			})
-			.on('pointerupoutside', () => {
-				flag = false;
-				this.mSpeed = 1;
-			});
-
 		this.sortableChildren = true;
 	}
 
 	async onStart() {
-		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('guide/game_2.mp3').sound,
-		);
+		await PhonicsApp.Handle.controller.settingGuideSnd('guide/game_2.mp3');
 
 		await this.createConveyor();
 		await this.createBag();
@@ -328,6 +295,48 @@ export class Game2 extends GameModule {
 		await PhonicsApp.Handle.controller.startGuide();
 		await this.boardShow(true);
 		await this.startGameEvent();
+
+		/**
+		 * test
+		 * 박스 아래 컨베이어 다리부분을 클릭한 상태로 왼쪽으로 드래그하면
+		 * 컨베이어 속도가 빨라진다.
+		 * 버그 체크할 때, 주석 풀면 작동합니다.
+		 * */
+		// let clickFlag = false;
+		// let initX = 0;
+		// const fastBtn = new PIXI.Graphics();
+		// fastBtn.beginFill(0x00ff00, 1);
+		// fastBtn.drawRect(this.mConveyor.x, this.mConveyor.y, Config.width, 100);
+		// fastBtn.endFill();
+		// fastBtn.alpha = 0;
+		// fastBtn.interactive = true;
+		// this.addChild(fastBtn);
+		// fastBtn.interactive = true;
+		// fastBtn
+		// 	.on('pointerdown', (evt: PIXI.InteractionEvent) => {
+		// 		clickFlag = true;
+		// 		initX = evt.data.global.x;
+		// 	})
+		// 	.on('pointermove', (evt: PIXI.InteractionEvent) => {
+		// 		if (!clickFlag) {
+		// 			return;
+		// 		}
+		//  	const permittedRange = 300
+		// 		const current = evt.data.global.x;
+		// 		Math.abs(current - initX) > permittedRange
+		// 			? (this.mSpeed = 20)
+		// 			: (this.mSpeed = 1);
+		// 	})
+		// 	.on('pointerup', () => {
+		// 		clickFlag = false;
+		// 		this.mSpeed = 1;
+		// 	})
+		// 	.on('pointerout', () => {
+		// 		clickFlag = false;
+		// 		this.mSpeed = 1;
+		// 	});
+
+		/**test */
 	} //==================컨베이어==================================
 
 	// 컨베이어 생성 및 모션(ticker)생성

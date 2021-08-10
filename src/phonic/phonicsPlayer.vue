@@ -38,21 +38,26 @@ export default class App extends Vue {
 	private fullFlag = false;
 	private mobilecolume = false;
 	async created() {
-		//
+		/**
+		 * 파닉스는 phonic => core => app.ts 에서 실행됩니다.
+		 */
 	}
 	async mounted() {
+		let startActivity = 'intro';
+		window['Android'] ? (startActivity = 'intro') : (startActivity = 'home');
 		this.App = new PhonicsApp(
 			document.getElementById('canvas') as HTMLCanvasElement,
-			'home',
-			// 'intro',
-			// 'chant',
-			// 'sound',
-			// 'game',
+			startActivity,
 		);
+		/**
+		 * intro 씬-> onStart() 에서 현재진도에 따라 액티비티 이동하는 분기처리
+		 */
 
-		window['phonics_resize'] = () => this.resizeApp();
-		window.addEventListener('resize', window['phonics_resize']);
-		this.resizeApp();
+		if (!window['Android']) {
+			window['phonics_resize'] = () => this.resizeApp();
+			window.addEventListener('resize', window['phonics_resize']);
+			this.resizeApp();
+		}
 		await this.App.onInit();
 
 		this.App.goFullScreen = async () => {
@@ -216,7 +221,7 @@ export default class App extends Vue {
 		left: 50%;
 		transform: translate(-50%, -50%);
 		width: 1280px;
-		height: 800px;
+		height: 752px;
 		box-sizing: border-box;
 		/* border: 2px white solid;
 		box-sizing: border-box; */

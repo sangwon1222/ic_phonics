@@ -1,4 +1,4 @@
-const devMode = true; // ******* 주의! 개발자 모드일 경우 true, 실서비스 모드일 경우 flase 로 바꿔줄것! *******
+const devMode = false; // ******* 주의! 개발자 모드일 경우 true, 실서비스 모드일 경우 flase 로 바꿔줄것! *******
 
 export default {
 	devMode: devMode, // 개발자 모드, 실서비스 모드 구분을 나타낸다.
@@ -11,7 +11,7 @@ export default {
 		: 'https://xcdn.home-learn.com/preschool_eng/n_study/2021/ps_eng/',
 	bigdataAPIProd: devMode ? 'dev' : 'ops',
 	// restAPI: './rsc/',
-	restAPI: 'https://imestudy.smartdoodle.net/ic_phonics/ic_phonics/rsc/',
+	// restAPIProd: 'https://imestudy.smartdoodle.net/ic_phonics/ic_phonics/rsc/',
 	width: 1280,
 	height: 752,
 	mobile: false, // 모바일인지 PC인지 구분을 나타낸다.
@@ -21,7 +21,7 @@ export default {
 	isFreeStudy: true, //오늘의 학습 모드 설정
 	currentMode: 0, // 현재 학습 모드 번호
 	currentIdx: 0, // 현재 서브 학습 모드 번호
-
+	isHomeLearn: true,
 	getInitVariable: {
 		debug: '0',
 		cache: '1',

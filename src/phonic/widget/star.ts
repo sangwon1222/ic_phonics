@@ -16,17 +16,27 @@ export class Star extends PIXI.Sprite {
 
 		this.mGainStarSnd = ResourceManager.Handle.getCommon('gain_star.mp3').sound;
 	}
-	onStar() {
-		// gsap
-		// 	.to(this, { alpha: 0, duration: 0.25 })
-		// 	.eventCallback('onComplete', () => {
-		if (!this.mGainStarSnd.paused) {
-			this.mGainStarSnd.pause();
-		}
-		this.mGainStarSnd.play();
-		this.texture = this.mOn;
-		// 	gsap.to(this, { alpha: 1, duration: 0.25 });
-		// });
+
+	onStar(): Promise<void> {
+		return new Promise<void>(resolve => {
+			if (!this.mGainStarSnd.paused) {
+				this.mGainStarSnd.pause();
+			}
+			let star = new PIXI.Sprite(this.mOn);
+			this.addChild(star);
+			star.anchor.set(0.5);
+			star.alpha = 0;
+
+			gsap
+				.to(star, { alpha: 1, duration: 0.5 })
+				.eventCallback('onComplete', () => {
+					this.mGainStarSnd.play();
+					this.texture = this.mOn;
+					this.removeChild(star);
+					star = null;
+					resolve();
+				});
+		});
 	}
 }
 
@@ -43,11 +53,6 @@ export class StarBar extends PIXI.Sprite {
 
 	createStar(): Promise<void> {
 		return new Promise<void>(resolve => {
-			// const starBG = new PIXI.Sprite(
-			// 	ResourceManager.Handle.getCommon('star_bg.png').texture,
-			// );
-			// this.addChild(starBG);
-
 			this.mStarAry = [];
 
 			let offsetX = 26;
@@ -71,9 +76,9 @@ export class StarBar extends PIXI.Sprite {
 		});
 	}
 
-	onStar(step: number) {
+	async onStar(step: number) {
 		if (step < this.mTotal) {
-			this.mStarAry[step].onStar();
+			await this.mStarAry[step].onStar();
 		}
 	}
 }

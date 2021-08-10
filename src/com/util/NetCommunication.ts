@@ -12,6 +12,7 @@ import * as Util from './Util';
 import Config from '@/com/util/Config';
 import AlphabetConf from '../../Alphabet/AlphabetConf';
 import PhonicsConf from '../../phonics/PhonicsConf';
+import * as PhonicConf from '../../phonic/core/PhonicsConf';
 import SightWordsConf from '../../sightwords/SightWordsConf';
 
 export class NetCommunication extends ObjectBase {
@@ -32,6 +33,9 @@ export class NetCommunication extends ObjectBase {
 				break;
 			case '사이트워드':
 				this.AppConf = SightWordsConf;
+				break;
+			case '파닉스':
+				this.AppConf = PhonicConf;
 				break;
 			default:
 				this.AppConf = AlphabetConf;

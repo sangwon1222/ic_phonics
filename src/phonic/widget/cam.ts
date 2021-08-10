@@ -42,6 +42,24 @@ export class Cam extends PIXI.Container {
 		await this.setMediaDevices(tX, tY, tWidth, tHeight, tMask);
 	}
 
+	// 미디어 관련 초기화를 한다.
+	private removeMediaDevices() {
+		this.removeChild(this.mVideoSpr);
+
+		this.mVideo.pause();
+		this.mVideo.srcObject = null;
+
+		if (this.mStream === null) return;
+
+		this.mStream.getTracks().forEach(function(track) {
+			if (track.readyState == 'live') {
+				track.stop();
+			}
+		});
+
+		this.mStream = null;
+	}
+
 	// N형 후면카메라가 있는 기종에선, 웹카메라가 디폴트로 후면이 잡히는 문제가 있어서 현재 프론트카메라의 인덱스를 받아 전면 카메라를 셋팅해야 합니다.
 	//0415 장준팀장 메일참조
 	// 후면 카메라 있는 기종인지 체크를 나타낸다.
@@ -78,24 +96,6 @@ export class Cam extends PIXI.Container {
 		} catch (e) {
 			console.log(e);
 		}
-	}
-
-	// 미디어 관련 초기화를 한다.
-	private removeMediaDevices() {
-		this.removeChild(this.mVideoSpr);
-
-		this.mVideo.pause();
-		this.mVideo.srcObject = null;
-
-		if (this.mStream === null) return;
-
-		this.mStream.getTracks().forEach(function(track) {
-			if (track.readyState == 'live') {
-				track.stop();
-			}
-		});
-
-		this.mStream = null;
 	}
 
 	// 미디어 디바이스 장치를 확인한다.
@@ -144,14 +144,13 @@ export class Cam extends PIXI.Container {
 		//=========================================================
 
 		this.mVideo.onloadedmetadata = evt => {
-			// this.mVideo.play();
-			// console.log('onloadedmetadata');
 			this.mVideoSpr = new PIXI.Sprite();
-			this.mVideoSpr.position.set(tX, tY);
 			this.addChild(this.mVideoSpr);
 			this.mVideoSpr.texture = PIXI.Texture.from(this.mVideo);
 			this.mVideoSpr.texture.rotate = 12; //기본 텍스쳐가 반전되어 있어 비디오 좌우 반전을 나타낸다.
-			this.mVideoSpr.mask = tMask;
+			this.mVideoSpr.position.set(tX, tY);
+			this.mVideoSpr.anchor.set(0.5);
+			tMask ? (this.mVideoSpr.mask = tMask) : null;
 		};
 	}
 

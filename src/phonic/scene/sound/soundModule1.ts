@@ -3,10 +3,9 @@ import Config from '@/com/util/Config';
 import { ResourceManager } from '@/phonic/core/resourceManager';
 import { SoundModule } from './soundModule';
 import { gameData } from '@/phonic/core/resource/product/gameData';
-import gsap, { Linear, MorphSVGPlugin, Power0, TweenMax } from 'gsap/all';
-import { debugLine, shuffleArray } from '@/phonic/utill/gameUtil';
+import gsap, { Power0 } from 'gsap/all';
+import { isIOS, shuffleArray } from '@/phonic/utill/gameUtil';
 import { Sound } from './sound';
-import { Tween } from 'jquery';
 import pixiSound from 'pixi-sound';
 import { StarBar } from '@/phonic/widget/star';
 import { Eop } from '@/phonic/widget/eop';
@@ -14,13 +13,16 @@ import { PhonicsApp } from '@/phonic/core/app';
 
 // 글자의 파도를 꽉채우면 나오는 완성카드
 export class CompleteCard extends PIXI.Container {
+	private mWord: string;
+
 	private mTxtArray: Array<PIXI.Text>;
 
 	private mTxtStage: PIXI.Container;
 	private mImgStage: PIXI.Container;
 
-	constructor(private mWord: string) {
+	constructor(word: string) {
 		super();
+		this.mWord = word;
 	}
 
 	// 변수 초기화 및 재설정
@@ -267,6 +269,8 @@ export class Wave extends PIXI.Container {
 
 // wave를 실행 및 조작한다.
 export class QuizTxt extends PIXI.Sprite {
+	private mText: string;
+
 	// 알파벳의 흰바탕/ 옐로우바탕
 	private mTxtBg: PIXI.Sprite;
 	// 색칠할 파도 그래픽
@@ -274,8 +278,9 @@ export class QuizTxt extends PIXI.Sprite {
 	private mStartY: number;
 	private mEndY: number;
 
-	constructor(private mText: string) {
+	constructor(text: string) {
 		super();
+		this.mText = text;
 	}
 
 	// 데이터 초기화 및 재설정
@@ -348,6 +353,7 @@ export class QuizTxt extends PIXI.Sprite {
 	startEvent() {
 		this.interactive = true;
 		this.buttonMode = true;
+		this.hitArea = new PIXI.Rectangle(-500, -300, 1000, 600);
 
 		let flag = false;
 		this.on('pointertap', () => {
@@ -390,8 +396,14 @@ export class QuizTxt extends PIXI.Sprite {
 		this.mTxtBg.texture = ResourceManager.Handle.getCommon(
 			`title/${Config.subjectNum}_${this.mText}.png`,
 		).texture;
+
+		let duration = 0.5;
+		if (window['currentAlphabet']) {
+			window['currentAlphabet'].play();
+			duration = 1;
+		}
 		gsap
-			.to(this.scale, { x: 1.1, y: 1.1, duration: 0.5, ease: 'bounce' })
+			.to(this.scale, { x: 1.1, y: 1.1, duration: duration, ease: 'bounce' })
 			.eventCallback('onComplete', async () => {
 				await (this.parent.parent as Sound1).showCard();
 				this.removeChildren();
@@ -423,6 +435,7 @@ export class Sound1 extends SoundModule {
 		super('sound1');
 	}
 	async onInit() {
+		!isIOS() ? (window['bgm'].volume = 1) : null;
 		Config.currentMode = 1;
 		Config.currentIdx = 0;
 
@@ -460,14 +473,11 @@ export class Sound1 extends SoundModule {
 
 		this.addChild(bg, this.mStarBar, this.mStage);
 		await this.mStarBar.onInit();
+		await this.resetQuizData('start');
+		await PhonicsApp.Handle.controller.settingGuideSnd('guide/sound_1.mp3');
 	}
 
 	async onStart() {
-		await this.resetQuizData('start');
-
-		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('guide/sound_1.mp3').sound,
-		);
 		await PhonicsApp.Handle.controller.startGuide();
 
 		this.mQuizTxt.startEvent();
@@ -576,28 +586,29 @@ export class Sound1 extends SoundModule {
 		this.mAffor.visible = true;
 
 		this.mAfforAni = gsap.timeline({ repeat: -1, repeatDelay: 4 });
-		this.mAfforAni.to(this.mAffor.scale, {
-			x: 2,
-			y: 2,
-			duration: 0,
-			ease: Power0.easeNone,
-		});
-		this.mAfforAni.to(this.mAffor, {
-			alpha: 1,
-			duration: 0,
-			ease: Power0.easeNone,
-		});
-		this.mAfforAni.to(this.mAffor.scale, {
-			x: 1,
-			y: 1,
-			duration: 0.5,
-			ease: Power0.easeNone,
-		});
-		this.mAfforAni.to(this.mAffor, {
-			alpha: 0,
-			duration: 0.5,
-			ease: Power0.easeNone,
-		});
+		this.mAfforAni
+			.to(this.mAffor.scale, {
+				x: 2,
+				y: 2,
+				duration: 0,
+				ease: Power0.easeNone,
+			})
+			.to(this.mAffor, {
+				alpha: 1,
+				duration: 0,
+				ease: Power0.easeNone,
+			})
+			.to(this.mAffor.scale, {
+				x: 1,
+				y: 1,
+				duration: 0.5,
+				ease: Power0.easeNone,
+			})
+			.to(this.mAffor, {
+				alpha: 0,
+				duration: 0.5,
+				ease: Power0.easeNone,
+			});
 	}
 
 	resetAffor(): Promise<void> {

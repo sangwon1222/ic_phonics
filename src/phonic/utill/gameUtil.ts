@@ -1,7 +1,3 @@
-import gsap from 'gsap/all';
-import { ResourceManager } from '../core/resourceManager';
-import config from '../../com/util/Config';
-
 // 좌표딸때
 export function getPos(target: any) {
 	target.interactive = true;
@@ -25,8 +21,8 @@ export function getPos(target: any) {
 
 // 배열 섞어 주는 함수
 export function shuffleArray(a: Array<any>) {
-	for (let i = a.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
+	for (let i = a.length - 1; i >= 0; i--) {
+		const j = Math.floor(Math.random() * i);
 		[a[i], a[j]] = [a[j], a[i]];
 	}
 	return a;
@@ -70,3 +66,18 @@ export function isMobilePlatform() {
 		}
 	}
 }
+
+// export function shuffle(e) {
+// 	const clone = [];
+// 	for (const cloneObject of e) {
+// 		clone.push(cloneObject);
+// 	}
+
+// 	const shuffled = [];
+// 	for (let i = clone.length - 1; i >= 0; i--) {
+// 		const random = Math.floor(Math.random() * clone.length);
+// 		shuffled.push(clone[random]);
+// 		clone.splice(random, 1);
+// 	}
+// 	return shuffled;
+// }

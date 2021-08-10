@@ -3,7 +3,7 @@ window.PIXI = PIXI;
 import pixiSound from 'pixi-sound';
 require('pixi-spine');
 import WebFont from 'webfontloader';
-import { ResourceManager, ResourceTable } from './resourceManager';
+import { ResourceManager } from './resourceManager';
 
 import { SceneBase } from './sceneBase';
 import gsap from 'gsap';
@@ -19,7 +19,7 @@ import { Outro } from '../scene/outro';
 import { Sound } from '../scene/sound/sound';
 import { Game } from '../scene/game/game';
 import { Controller } from '../widget/controller';
-import { isMobilePlatform } from '../utill/gameUtil';
+import { isIOS, isMobilePlatform } from '../utill/gameUtil';
 
 import AppConf from '@/phonic/core/PhonicsConf';
 
@@ -47,6 +47,7 @@ export class PhonicsApp extends PIXI.Application {
 		return PhonicsApp._handle;
 	}
 
+	private mStartScene: string;
 	// 현재 진행중인 액티비티 이름
 	private mCurrentSceneName: string;
 	get currectSceneName(): string {
@@ -70,7 +71,7 @@ export class PhonicsApp extends PIXI.Application {
 
 	private mSceneArray: Array<SceneBase>;
 
-	constructor(canvas: HTMLCanvasElement, private mPrevScene: string) {
+	constructor(canvas: HTMLCanvasElement, startScene: string) {
 		super({
 			width: Config.width,
 			height: Config.height,
@@ -78,33 +79,18 @@ export class PhonicsApp extends PIXI.Application {
 			view: canvas,
 		});
 		PhonicsApp._handle = this;
+		this.mStartScene = startScene;
 
 		window['spine'] = null;
 		Config.appName = 'phonics';
 	}
 
 	async onInit() {
+		// 메모리 초기화
+		await pixiSound.context.refresh();
 		await this.resetTicker();
 
-		pixiSound.context.paused = false;
-		await pixiSound.context.refresh();
-		this.renderer.reset();
-		gsap.globalTimeline.clear();
-		pixiSound.resumeAll();
-
-		this.mSceneStage = new PIXI.Container();
-		this.mModalStage = new PIXI.Container();
-
-		this.stage.addChild(this.mSceneStage, this.mModalStage);
-
-		this.mLoadingScene = new LoadingBar();
-		this.mLoadingScene.interactive = true;
-		this.mModalStage.addChild(this.mLoadingScene);
-		await this.mLoadingScene.load();
-
-		this.mSceneStage.zIndex = 1;
-		this.mModalStage.zIndex = 2;
-
+		// 아이스크림 에듀 학습 정보 가져오기
 		await this.getStudyInfo();
 
 		// back 물리버튼 탭시의 처리를 나타낸다.
@@ -115,23 +101,30 @@ export class PhonicsApp extends PIXI.Application {
 		if (!this.netModule) this.netModule = new NetCommunication();
 		window['phonics_xCaliper'] = new XCaliperApi();
 
+		// 폰트 리소스 로딩
 		await this._fontLoading();
+		// 공통으로 쓰이는 리소스 로딩
 		await ResourceManager.Handle.loadCommonResource(Common);
-		ResourceManager.Handle.getCommon('button_click.mp3').sound.play();
 
-		if (window['ticker']) gsap.ticker.remove(window['ticker']);
-		if (window['video']) {
-			window['video'].pause();
-			window['video'] = null;
-		}
-		if (window['bgm']) {
-			window['bgm'].pause();
-			window['bgm'] = null;
-		}
+		/**
+		 * createAppUI() 구조
+		 * app
+		 * [scene Stage]    ,             [ modal Stage ]
+		 *      ↓                                ↓
+		 * [scene],[scene]...     [loading Screen , controller]
+		 *
+		 *
+		 * [modal] zIndex=3
+		 * [scene] zIndex=2
+		 * [stage]
+		 */
+		await this.createAppUI();
 
-		this.stage.sortableChildren = true;
+		// 로딩에 들어가는 리소스 로딩
+		await this.mLoadingScene.load();
+		await this.mController.onInit();
 
-		// PIXI.settings.TARGET_FPMS = 0.03;
+		PIXI.settings.TARGET_FPMS = 0.03;
 		Config.mobile = isMobilePlatform();
 
 		// 기기 ON -> OFF 시 처리를 나타낸다.
@@ -139,38 +132,31 @@ export class PhonicsApp extends PIXI.Application {
 			'visibilitychange',
 			window['app_visibilitychange'],
 		);
-		document.addEventListener('visibilitychange', async () => {
-			/**화면이 보일때 */
+		window['app_visibilitychange'] = async () => {
 			if (document.hidden == false) {
+				/**화면 보일때 */
 				pixiSound.resumeAll();
 				window['spine'] ? (window['spine'].state.timescale = 1) : null;
-				window['video'] ? await window['video_controller'].waitingPlay() : null;
-				if (window['bgm']) {
-					window['bgm'].play();
-					window['bgm'].volume = 1;
+				window['bgm'] ? (window['bgm'].muted = false) : null;
+				window['guide_snd'] ? window['guide_snd'].play() : null;
+				if (window['video']) {
+					window['Android']
+						? null
+						: await window['video_controller'].waitingPlay();
 				}
-				// window['bgm'] ? (window['bgm'].volume = 1) : null;
 			} else {
-				/**화면이 안보일때 */
+				/**화면 안보일때 */
 				pixiSound.pauseAll();
 				window['spine'] ? (window['spine'].state.timescale = 0) : null;
 				window['video'] ? window['video'].pause() : null;
-				if (window['bgm']) {
-					window['bgm'].pause();
-					window['bgm'].volume = 0;
-				}
-				// window['bgm'] ? (window['bgm'].volume = 0) : null;
+				window['bgm'] ? (window['bgm'].muted = true) : null;
+				window['guide_snd'] ? window['guide_snd'].pause() : null;
 			}
-		});
-
-		this.mController = new Controller();
-		this.mModalStage.addChild(this.mController);
-		await this.mController.onInit();
-		this.mController.zIndex = 1;
-
-		this.mController.visible = false;
-
-		this.mModalStage.sortableChildren = true;
+		};
+		document.addEventListener(
+			'visibilitychange',
+			window['app_visibilitychange'],
+		);
 
 		window['clickSnd'] = ResourceManager.Handle.getCommon(
 			'button_click.mp3',
@@ -185,9 +171,57 @@ export class PhonicsApp extends PIXI.Application {
 		this.addScene(new Game());
 		this.addScene(new Outro());
 
-		window['phonics_xCaliper'].AssignableStudyStarted();
+		await window['phonics_xCaliper'].AssignableStudyStarted();
 
-		await this.goScene(this.mPrevScene);
+		await this.goScene(this.mStartScene);
+	}
+
+	private createAppUI(): Promise<void> {
+		return new Promise<void>(resolve => {
+			this.stage.sortableChildren = true;
+
+			this.mSceneStage = new PIXI.Container();
+
+			this.mModalStage = new PIXI.Container();
+			this.mModalStage.sortableChildren = true;
+
+			this.mSceneStage.zIndex = 1;
+			this.mModalStage.zIndex = 2;
+			this.stage.addChild(this.mSceneStage, this.mModalStage);
+
+			this.mLoadingScene = new LoadingBar();
+			this.mLoadingScene.interactive = true;
+
+			this.mController = new Controller();
+			this.mController.zIndex = 1;
+			this.mController.visible = false;
+
+			this.mModalStage.addChild(this.mLoadingScene);
+			this.mModalStage.addChild(this.mLoadingScene, this.mController);
+
+			resolve();
+		});
+	}
+
+	private resetTicker(): Promise<void> {
+		return new Promise<void>(resolve => {
+			window['ticker'] ? gsap.ticker.remove(window['ticker']) : null;
+			window['video'] && !window['video'].paused
+				? window['video'].pause()
+				: null;
+			window['bgm'] && !window['bgm'].paused ? window['bgm'].pause() : null;
+
+			window['ticker'] = null;
+			window['video'] = null;
+			window['bgm'] = null;
+
+			pixiSound.context.paused = false;
+			this.renderer.reset();
+			gsap.globalTimeline.clear();
+			pixiSound.resumeAll();
+
+			resolve();
+		});
 	}
 
 	controllerVisible(flag: boolean) {
@@ -196,20 +230,25 @@ export class PhonicsApp extends PIXI.Application {
 
 	private _fontLoading(): Promise<void> {
 		return new Promise<void>(resolve => {
+			let url = '';
+
+			Config.restAPIProd.slice(-2) == 'g/'
+				? // 아이스크림 cdn 바라 봅니다.
+				  (url = `${Config.restAPIProd}ps_phonics/viewer/fonts/fonts.css`)
+				: // 미니게이트 테스트서버 바라 봅니다.
+				  (url = `${Config.restAPIProd}viewer/fonts/fonts.css`);
 			WebFont.load({
 				custom: {
-					// families: ["TmoneyRoundWindExtraBold", "TmoneyRoundWindRegular"],
 					families: ['minigate Bold ver2', 'NanumSquareRound'],
-					urls: [`${Config.restAPIProd}ps_phonics/viewer/fonts/fonts.css`],
-					// urls: [`https://imestudy.smartdoodle.net/ic_phonics/rsc/viewer/fonts/fonts.css`],
+					urls: [url],
 				},
 				timeout: 2000,
 				active: () => {
-					//
 					resolve();
 				},
 
 				fontloading: fontname => {
+					fontname == '' ? console.log(`fontname이 없습니다.`) : null;
 					//
 				},
 			});
@@ -220,7 +259,7 @@ export class PhonicsApp extends PIXI.Application {
 		this.mLoadingScene.visible = flag;
 	}
 
-	addScene(scene: SceneBase) {
+	private addScene(scene: SceneBase) {
 		this.mSceneArray.push(scene);
 	}
 
@@ -229,57 +268,63 @@ export class PhonicsApp extends PIXI.Application {
 		if (this.mCurrentSceneName == sceneName) {
 			return;
 		}
+		await gsap.globalTimeline.clear();
+		pixiSound.context.refresh();
 
-		if (window['chant_guide_snd']) {
-			window['chant_guide_snd'].pause();
-			window['chant_guide_snd'] = null;
-		}
+		window['bgm'] && !window['bgm'].paused ? window['bgm'].pause() : null;
+		window['guide_snd'] ? window['guide_snd'].pause() : null;
+
+		window['bgm'] = null;
+		window['guide_snd'] = null;
 
 		await this.resetTicker();
 
 		if (sceneName == 'sound' || sceneName == 'game') {
-			window['bgm'] = document.createElement('audio');
-			window[
-				'bgm'
-			].src = `${Config.restAPIProd}ps_phonics/viewer/sounds/${sceneName}_bgm.mp3`;
-			window['bgm'].play();
-			window['bgm'].loop = true;
+			this.mController.bgmBtn.visible = false;
+			/**
+			 * IOS 오디오 동시출력이 불안정해서 추후에 soundjs 로 분기쳐서 업데이트 필요
+			 * 일단은 IOS로 접속 시 BGM 옵션 빼놨습니다.
+			 * */
+			if (!isIOS()) {
+				window['bgm'] = document.createElement('audio');
 
-			this.controller.bgmFlag
-				? (window['bgm'].volume = 1)
-				: (window['bgm'].volume = 0);
+				let url = '';
+				Config.restAPIProd.slice(-2) == 'g/'
+					? (url = `${Config.restAPIProd}ps_phonics/viewer/sounds/${sceneName}_bgm.mp3`)
+					: (url = `${Config.restAPIProd}viewer/sounds/${sceneName}_bgm.mp3`);
 
-			this.mController.bgmBtn.visible = true;
+				window['bgm'].src = url;
+				window['bgm'].loop = true;
+				window['bgm'].play();
+
+				this.controller.bgmFlag
+					? (window['bgm'].muted = false)
+					: (window['bgm'].muted = true);
+
+				this.mController.bgmBtn.visible = true;
+			}
 		} else {
 			this.mController.bgmBtn.visible = false;
-			if (window['bgm']) {
-				window['bgm'].pause();
-				window['bgm'] = null;
-			}
 		}
 
 		let sceneFlag = true;
 		for (const scene of this.mSceneArray) {
 			if (scene.sceneName == sceneName) {
 				sceneFlag = false;
-				this.mPrevScene = this.mCurrentSceneName;
+				await this.loddingFlag(true);
 				this.mCurrentSceneName = sceneName;
 
-				// free_mode => 액티비티 완료 안해도 액티비티 이동가능
 				this.mController.changeLabel(sceneName);
-
-				await gsap.globalTimeline.clear();
 				pixiSound.stopAll();
 				this.mController.bgmSprite.visible = false;
 				this.mController.bgmBtn.interactive = true;
 
 				this.mSceneStage.removeChildren();
 				this.mSceneStage.addChild(scene);
-
-				await this.loddingFlag(true);
 				await this.mController.reset();
 
-				this.setAssignableViewed();
+				await this.setAssignableViewed();
+				pixiSound.resumeAll();
 				await scene.onInit();
 				await this.loddingFlag(false);
 				await scene.onStart();
@@ -293,7 +338,7 @@ export class PhonicsApp extends PIXI.Application {
 	}
 
 	//xCaliper.AssignableViewed 함수 호출을 나타낸다.
-	private setAssignableViewed() {
+	private async setAssignableViewed() {
 		const list = ['chant', 'sound', 'game'];
 		let tSceneName = '';
 		let tSceneNum = 0;
@@ -305,7 +350,10 @@ export class PhonicsApp extends PIXI.Application {
 			}
 		}
 
-		window['phonics_xCaliper'].AssignableViewed(tSceneName, tSceneNum + 1);
+		await window['phonics_xCaliper'].AssignableViewed(
+			tSceneName,
+			tSceneNum + 1,
+		);
 	}
 
 	// 아이스크림 에듀 학습 정보 가져오기
@@ -322,19 +370,6 @@ export class PhonicsApp extends PIXI.Application {
 			if (Config.subjectName == undefined) {
 				Config.subjectName = gameData[`day${Config.subjectNum}`].title;
 			}
-			console.groupCollapsed(
-				`%c 초기 세팅값 `,
-				'background:#000; color:#fff;padding:2px;',
-			);
-			console.log(
-				'subjectNum  =>' + `%c [ ${Config.subjectNum} ]`,
-				'color:green; font-weight:800;',
-			);
-			console.log(
-				'subjectName  =>' + `%c [ ${Config.subjectName} ]`,
-				'color:green; font-weight:800;',
-			);
-			console.groupEnd();
 
 			Config.currentMode = 0;
 			Config.currentIdx = 0;
@@ -343,11 +378,15 @@ export class PhonicsApp extends PIXI.Application {
 
 		await this.netModule.getLCMS();
 
-		Config.subjectNum = Number(
-			AppConf.LCMS.cdn_url.slice(-2, AppConf.LCMS.cdn_url.length),
-		);
+		let subjectNum = 1;
+		Config.subjectNum.toString().slice(0, 1) == '0'
+			? (subjectNum = +Config.subjectNum.toString().slice(-1))
+			: (subjectNum = +AppConf.LCMS.cdn_url.slice(
+					-2,
+					AppConf.LCMS.cdn_url.length,
+			  ));
+		Config.subjectNum = +subjectNum;
 		Config.subjectName = Util.getSubjectStr(Config.subjectNum);
-		// App.Handle.setAlphabet = Config.subjectName;
 
 		let tFreeStudy = false;
 		Config.getInitVariable.studying === 'N'
@@ -390,24 +429,6 @@ export class PhonicsApp extends PIXI.Application {
 		}
 	}
 
-	resetTicker(): Promise<void> {
-		return new Promise<void>(resolve => {
-			if (window['ticker']) {
-				gsap.ticker.remove(window['ticker']);
-			}
-			window['ticker'] = null;
-			if (window['video']) {
-				window['video'].pause();
-				window['video'] = null;
-			}
-			if (window['bgm']) {
-				window['bgm'].pause();
-				window['bgm'] = null;
-			}
-			resolve();
-		});
-	}
-
 	endScene(): Promise<void> {
 		return new Promise<void>(resolve => {
 			for (const scene of this.mSceneArray) {
@@ -418,7 +439,7 @@ export class PhonicsApp extends PIXI.Application {
 	}
 
 	goFullScreen() {
-		// App.vue에서 overwhite
+		// App.vue에서 override
 	}
 
 	//닫기 버튼 클릭시의 처리를 나타낸다.

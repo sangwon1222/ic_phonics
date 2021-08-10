@@ -1,5 +1,4 @@
 import * as PIXI from 'pixi.js';
-
 import gsap from 'gsap/all';
 import { ResourceManager } from '../core/resourceManager';
 import config from '../../com/util/Config';
@@ -178,7 +177,6 @@ export class UnderBar extends PIXI.Container {
 	get underBarMode(): boolean {
 		return this.mUnderBarMode;
 	}
-
 	set underBarMode(v: boolean) {
 		this.mUnderBar.visible = v;
 
@@ -244,7 +242,9 @@ export class UnderBar extends PIXI.Container {
 		const sound = new Btn('icon_speaker_on.png', 'icon_speaker_off.png');
 		sound.position.set(1160, 40);
 		sound.onPointerTap = () => {
-			sound.flag ? (window['video'].volume = 0) : (window['video'].volume = 1);
+			sound.flag
+				? (window['video'].muted = true)
+				: (window['video'].muted = false);
 		};
 
 		this.mUnderBar.addChild(sound);
@@ -350,7 +350,7 @@ export class VideoControll extends PIXI.Container {
 	private mDimmed: PIXI.Graphics;
 	private mUnderBar: UnderBar;
 	private mPlayBtn: Btn;
-	private mDelay3: any;
+	private mDelay3Sec: any;
 
 	constructor() {
 		super();
@@ -358,29 +358,49 @@ export class VideoControll extends PIXI.Container {
 	async onInit() {
 		window['video_controller'] = this;
 		this.registDelay();
+
+		// 영상 위에 딤드 생성
 		await this.createDimmed();
+		// 동영상 플레이어바 생성
 		await this.createUnderBar();
 		await this.mUnderBar.onInit();
 
 		await this.hide();
-		isIOS() ? await this.createPlayBtn() : window['video'].play();
+		await this.createPlayBtn();
+
+		const iosFlag = isIOS();
+		await this.iosInit(iosFlag);
 
 		this.mDimmed.interactive = true;
 		this.mUnderBar.interactive = true;
 	}
 
+	private async iosInit(flag: boolean) {
+		if (flag) {
+			await this.waitingPlay();
+		} else {
+			this.mDimmed.alpha = 0;
+			if (window['video']) window['video'].play();
+
+			this.mPlayBtn.visible = false;
+			await this.hide();
+			this.mDimmed.interactive = true;
+			this.mDimmed.buttonMode = true;
+		}
+	}
+
 	destroyDelay(): Promise<void> {
 		return new Promise<void>(resolve => {
-			if (this.mDelay3) {
-				this.mDelay3.kill();
-				this.mDelay3 = null;
+			if (this.mDelay3Sec) {
+				this.mDelay3Sec.kill();
+				this.mDelay3Sec = null;
 			}
 			resolve();
 		});
 	}
 	private async registDelay() {
 		await this.destroyDelay();
-		this.mDelay3 = gsap.delayedCall(3, async () => {
+		this.mDelay3Sec = gsap.delayedCall(3, async () => {
 			await this.hide();
 		});
 	}
@@ -395,6 +415,12 @@ export class VideoControll extends PIXI.Container {
 					await this.registDelay();
 				})
 				.on('pointerup', async () => {
+					await this.registDelay();
+				})
+				.on('touchstart', async () => {
+					await this.registDelay();
+				})
+				.on('touchend', async () => {
 					await this.registDelay();
 				});
 
@@ -438,9 +464,6 @@ export class VideoControll extends PIXI.Container {
 			this.addChild(this.mPlayBtn);
 			this.mPlayBtn.onPointerTap = () => {
 				this.mDimmed.alpha = 0;
-				if (window['video'].currentTime == 1) {
-					window['video'].currentTime = 0;
-				}
 				window['video'].play();
 				this.mPlayBtn.visible = false;
 				this.hide();
@@ -452,6 +475,7 @@ export class VideoControll extends PIXI.Container {
 	}
 
 	async waitingPlay() {
+		window['video'] ? window['video'].pause() : null;
 		this.mDimmed.alpha = 0.6;
 		this.mPlayBtn.visible = true;
 	}

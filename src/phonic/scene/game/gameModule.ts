@@ -1,9 +1,13 @@
 import * as PIXI from 'pixi.js';
-import { Game } from './game';
 
 export class GameModule extends PIXI.Container {
-	constructor(private mGameName: string) {
+	private mGameName: string;
+	get moduleName(): string {
+		return this.mGameName;
+	}
+	constructor(gameName: string) {
 		super();
+		this.mGameName = gameName;
 	}
 	async onInit() {
 		//

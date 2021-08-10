@@ -1,13 +1,11 @@
 import gsap from 'gsap';
-import { ResourceManager } from '../core/resourceManager';
 import { SceneBase } from '../core/sceneBase';
 import config from '../../com/util/Config';
-import pixiSound from 'pixi-sound';
 import { gameData } from '../core/resource/product/gameData';
 import Config from '../../com/util/Config';
-import { debugLine } from '../utill/gameUtil';
 
 export class Home extends SceneBase {
+	private mTextBtn: Array<PIXI.Graphics>;
 	constructor() {
 		super('home');
 	}
@@ -85,6 +83,7 @@ export class Home extends SceneBase {
 
 	private createGameList(): Promise<void> {
 		return new Promise<void>(resolve => {
+			this.mTextBtn = [];
 			let offSetX = 10;
 			let offSetY = 80;
 
@@ -98,6 +97,7 @@ export class Home extends SceneBase {
 				btn.position.set(offSetX, offSetY);
 				btn.interactive = true;
 				btn.buttonMode = true;
+				this.mTextBtn.push(btn);
 
 				const index = new PIXI.Text(`${i + 1}: `, {
 					fill: 0xe660e8,
@@ -122,7 +122,8 @@ export class Home extends SceneBase {
 				(i + 1) % 5 == 0 ? (offSetX = 10) : (offSetX += 260);
 				(i + 1) % 5 == 0 ? (offSetY += 60) : null;
 
-				btn.once('pointerdown', () => {
+				btn.once('pointerdown', async () => {
+					await this.destroyBtn();
 					btn.tint = 0x0080db;
 					Config.subjectNum = i + 1;
 					Config.subjectName = gameData[`day${Config.subjectNum}`].title;
@@ -141,6 +142,16 @@ export class Home extends SceneBase {
 						await this.goScene('intro');
 					});
 				});
+			}
+			resolve();
+		});
+	}
+
+	destroyBtn(): Promise<void> {
+		return new Promise<void>(resolve => {
+			for (const btn of this.mTextBtn) {
+				btn.interactive = false;
+				btn.buttonMode = false;
 			}
 			resolve();
 		});

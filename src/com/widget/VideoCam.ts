@@ -7,12 +7,19 @@ export class VideoCam extends ObjectBase {
 	private mVideoSpr: PIXI.Sprite; // mVideo가 그려지는 Sprite
 	private mCameraInfos: Array<any>;
 
+	private mBody: HTMLElement;
+	private mVideoBox: HTMLElement;
+
 	constructor() {
 		super();
 
 		// 비디오 재생을 위한 비디오 태그를 생성 한다.
 		this.mVideo = document.createElement('video');
 
+		if (!Config.isHomeLearn) {
+			this.mVideoBox = document.createElement('div');
+			this.mBody = document.getElementsByTagName('body')[0];
+		}
 		this.mCameraInfos = [];
 		this.mStream = null;
 
@@ -92,8 +99,10 @@ export class VideoCam extends ObjectBase {
 	private removeMediaDevices() {
 		this.removeChild(this.mVideoSpr);
 
-		this.mVideo.pause();
-		this.mVideo.srcObject = null;
+		if (this.mVideo) {
+			this.mVideo.pause();
+			this.mVideo.srcObject = null;
+		}
 
 		if (this.mStream === null) return;
 
@@ -104,6 +113,15 @@ export class VideoCam extends ObjectBase {
 		});
 
 		this.mStream = null;
+
+		if (!Config.isHomeLearn) {
+			if (this.mVideo) {
+				this.mVideoBox.removeChild(this.mVideo);
+				this.mBody.removeChild(this.mVideoBox);
+				this.mVideoBox = null;
+				this.mVideo = null;
+			}
+		}
 	}
 
 	// 미디어 디바이스 장치를 확인한다.
@@ -115,30 +133,80 @@ export class VideoCam extends ObjectBase {
 		tHeight: number,
 		tMask?: PIXI.Sprite,
 	) {
-		// console.log(`devicelength = ${this.mCameraInfos.length}`);
-		// if (this.mCameraInfos.length > 1) {
-		// 	console.log(`deviceId = ${this.mCameraInfos[1].deviceId}`);
-		// }
-		const constraints = {
-			audio: false,
-			video: {
-				width: tWidth,
-				height: tHeight,
-				deviceId:
-					this.mCameraInfos.length > 1
-						? { exact: this.mCameraInfos[1].deviceId }
-						: undefined,
+		var canvas_info: any = { scale: 1 };
+		var constraints: any;
+		if (!Config.isHomeLearn) {
+			var gst: any = window.getComputedStyle(document.querySelector('#canvas'));
+			canvas_info.scale = parseInt(gst.width.split('px')[0]) / 1280;
+			canvas_info.top = document.querySelector('#canvas')['offsetTop'];
+			canvas_info.left = document.querySelector('#canvas')['offsetLeft'];
+			console.log('params---' + tX + ':' + tY + ':' + tWidth + ':' + tHeight);
+			console.log(canvas_info);
+			var vbw = (tWidth - 12) * canvas_info.scale;
+			var vbh = (tHeight - 12) * canvas_info.scale;
+			this.mVideoBox.style.position = 'absolute';
+			this.mVideoBox.style.width = vbw + 'px';
+			this.mVideoBox.style.height = vbh + 'px';
+			this.mVideoBox.style.borderRadius = vbw * 0.15 + 'px';
+			this.mVideoBox.style.overflow = 'hidden';
+			this.mVideoBox.style.left =
+				canvas_info.left + (tX + 6) * canvas_info.scale + 'px';
+			this.mVideoBox.style.top =
+				canvas_info.top + (tY + 6) * canvas_info.scale + 'px';
+			this.mVideo.autoplay = true;
+			this.mVideo.poster = '/';
+			this.mVideo.width = 640 * canvas_info.scale;
+			this.mVideo.height = 480 * canvas_info.scale;
+			this.mVideo.style.marginTop = -(this.mVideo.height - vbh) / 2 + 'px';
+			this.mVideo.style.marginLeft = -(this.mVideo.width - vbw) / 2 + 'px';
+			this.mVideo.style.transform = 'scaleX(-1)';
 
-				// facingMode: 'user',
-			},
-		};
+			this.mVideoBox.appendChild(this.mVideo);
+			this.mBody.appendChild(this.mVideoBox);
 
-		try {
-			this.mStream = await navigator.mediaDevices.getUserMedia(constraints);
-			this.linkVideo(tX, tY, tMask);
-		} catch (err) {
-			console.log(`${err.name} : ${err.message}`);
+			constraints = {
+				audio: false,
+				video: {
+					width: 640 * canvas_info.scale,
+					height: 480 * canvas_info.scale,
+					deviceId:
+						this.mCameraInfos.length > 1
+							? { exact: this.mCameraInfos[1].deviceId }
+							: undefined,
+				},
+			};
+		} else {
+			constraints = {
+				audio: false,
+				video: {
+					width: tWidth,
+					height: tHeight,
+					deviceId:
+						this.mCameraInfos.length > 1
+							? { exact: this.mCameraInfos[1].deviceId }
+							: undefined,
+				},
+			};
 		}
+
+		console.log(this.mCameraInfos);
+		const cons = new PIXI.Text(`${this.mCameraInfos}`, {
+			fontSize: 60,
+			padding: 30,
+			color: 0xff0000,
+		});
+		cons.anchor.set(0.5);
+		cons.position.set(Config.width / 2, Config.height / 2);
+
+		this.addChild(cons);
+
+		// try {
+		this.mStream = await navigator.mediaDevices.getUserMedia(constraints);
+		this.linkVideo(tX, tY, tMask);
+		// } catch (err) {
+		// 	// console.log(`${err.name} : ${err.message}`);
+		// 	console.error(err);
+		// }
 	}
 
 	// 전면 카메라로 들어오는 영상을 캔버스에 뿌려준다.
@@ -154,12 +222,16 @@ export class VideoCam extends ObjectBase {
 		this.mVideo.onloadedmetadata = evt => {
 			// this.mVideo.play();
 			// console.log('onloadedmetadata');
-			this.mVideoSpr = new PIXI.Sprite();
-			this.mVideoSpr.position.set(tX, tY);
-			this.addChild(this.mVideoSpr);
-			this.mVideoSpr.texture = PIXI.Texture.from(this.mVideo);
-			this.mVideoSpr.texture.rotate = 12; //기본 텍스쳐가 반전되어 있어 비디오 좌우 반전을 나타낸다.
-			this.mVideoSpr.mask = tMask;
+			if (!Config.isHomeLearn) {
+				this.mVideo.play();
+			} else {
+				this.mVideoSpr = new PIXI.Sprite();
+				this.mVideoSpr.position.set(tX, tY);
+				this.addChild(this.mVideoSpr);
+				this.mVideoSpr.texture = PIXI.Texture.from(this.mVideo);
+				this.mVideoSpr.texture.rotate = 12; //기본 텍스쳐가 반전되어 있어 비디오 좌우 반전을 나타낸다.
+				this.mVideoSpr.mask = tMask;
+			}
 		};
 	}
 

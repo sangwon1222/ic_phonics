@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import gsap, { Power0 } from 'gsap/all';
+import gsap from 'gsap/all';
 import { SceneBase } from '../../core/sceneBase';
 import { GameModule } from './gameModule';
 import { Game1 } from './gameModule1';
@@ -7,19 +7,18 @@ import { Game2 } from './gameModule2';
 import { Btn } from '@/phonic/widget/btn';
 import Config from '../../../com/util/Config';
 import { ResourceManager } from '@/phonic/core/resourceManager';
-import { Eop } from '@/phonic/widget/eop';
 import { gameData } from '@/phonic/core/resource/product/gameData';
-import { debugLine } from '@/phonic/utill/gameUtil';
 import pixiSound from 'pixi-sound';
 import { PhonicsApp } from '@/phonic/core/app';
-import { config } from 'vue/types/umd';
 
 // 씬 아래부분 숫자 scene index
 export class ProgressBar extends PIXI.Container {
+	private mTotalStep: number;
 	private mStepAry: Array<Btn>;
 
-	constructor(private mTotalStep: number) {
+	constructor(totalStep: number) {
 		super();
+		this.mTotalStep = totalStep;
 	}
 
 	async onInit() {
@@ -124,12 +123,14 @@ export class Game extends SceneBase {
 			}
 		}
 
+		let flag = true;
+
 		this.prevNextBtn.onClickPrev = async () => {
 			if (!flag) return;
 			await this.prevModule();
+			flag = true;
 		};
 
-		let flag = true;
 		this.prevNextBtn.onClickNext = async () => {
 			if (!flag) return;
 			await this.clickNext();
@@ -158,7 +159,6 @@ export class Game extends SceneBase {
 			if (this.mCurrentGameIdx == 0) {
 				if (this.controller.studyed[2].completed.module1) {
 					await this.nextModule();
-					// this.blintBtn(false);
 				}
 			} else {
 				if (this.controller.studyed[2].completed.module2) {
@@ -242,16 +242,16 @@ export class Game extends SceneBase {
 
 	// (다음모듈) or (다음게임) 으로 이동
 	async nextModule() {
-		await gsap.globalTimeline.clear();
-		if (window['ticker']) {
-			gsap.ticker.remove(window['ticker']);
+		if (window['guide_snd']) {
+			window['guide_snd'].pause();
+			window['guide_snd'] = null;
 		}
+		await gsap.globalTimeline.clear();
+		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 		window['ticker'] = null;
-
 		pixiSound.stopAll();
 		await pixiSound.context.refresh();
 		await gsap.globalTimeline.clear();
-
 		await PhonicsApp.Handle.loddingFlag(true);
 		await this.mGameModule[this.mCurrentGameIdx].deleteMemory();
 
@@ -281,6 +281,10 @@ export class Game extends SceneBase {
 
 	// (이전모듈) or (이전게임) 으로 이동
 	async prevModule() {
+		if (window['guide_snd']) {
+			window['guide_snd'].pause();
+			window['guide_snd'] = null;
+		}
 		await gsap.globalTimeline.clear();
 		if (window['ticker']) gsap.ticker.remove(window['ticker']);
 		this.mCurrentGameIdx -= 1;

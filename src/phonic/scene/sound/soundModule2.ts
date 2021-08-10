@@ -3,13 +3,13 @@ import { gameData } from '@/phonic/core/resource/product/gameData';
 import { ResourceManager } from '@/phonic/core/resourceManager';
 import { Cam } from '@/phonic/widget/cam';
 import RecordRTC from 'recordrtc';
-import gsap, { Power0 } from 'gsap/all';
+import gsap from 'gsap/all';
 import pixiSound from 'pixi-sound';
 import * as PIXI from 'pixi.js';
 import { Sound } from './sound';
 import { SoundModule } from './soundModule';
 import { PhonicsApp } from '@/phonic/core/app';
-import { debugLine } from '@/phonic/utill/gameUtil';
+import { isIOS } from '@/phonic/utill/gameUtil';
 import { Eop } from '@/phonic/widget/eop';
 
 // 카메라 필터버튼
@@ -17,11 +17,13 @@ export class FillterBtn extends PIXI.Sprite {
 	private mNormal: PIXI.Texture;
 	private mOn: PIXI.Texture;
 
+	private mCharactor: string;
 	get charactor(): string {
 		return this.mCharactor;
 	}
-	constructor(private mCharactor: string) {
+	constructor(charactor: string) {
 		super();
+		this.mCharactor = charactor;
 		this.mNormal = ResourceManager.Handle.getCommon(
 			`${this.mCharactor}_small.png`,
 		).texture;
@@ -39,7 +41,7 @@ export class FillterBtn extends PIXI.Sprite {
 		});
 	}
 
-	// CharactorRemote에서 overwhite
+	// CharactorRemote에서 override
 	onPointertap() {
 		//
 	}
@@ -91,33 +93,24 @@ export class CameraRemote extends PIXI.Container {
 		this.addChild(this.mMask);
 	}
 
-	startCamera() {
+	async startCamera() {
 		this.mMask.texture = ResourceManager.Handle.getCommon(
 			'cam_mask.png',
 		).texture;
 		if (this.mCam) {
 			return;
 		}
+
 		this.mCam = new Cam();
 		this.addChild(this.mCam);
 
-		if (Config.mobile) {
-			this.mCam.onStart(
-				Config.width / 2 - 265 / 2,
-				this.mCameraFillter.y - 340 / 2,
-				340,
-				265,
-				this.mMask,
-			);
-		} else {
-			this.mCam.onStart(
-				Config.width / 2 - 265 / 2,
-				this.mCameraFillter.y - 340 / 2,
-				265,
-				340,
-				this.mMask,
-			);
-		}
+		await this.mCam.onStart(
+			this.mCameraFillter.x,
+			this.mCameraFillter.y,
+			this.mMask.width,
+			this.mMask.height,
+			this.mMask,
+		);
 	}
 
 	registClickBubbleEvent() {
@@ -275,15 +268,19 @@ export class RecBtn extends PIXI.Sprite {
 		this.mFlag = v;
 	}
 
+	private mIdx: number;
 	get idx(): number {
 		return this.mIdx;
 	}
+
+	private mRole: string;
 	get role(): string {
 		return this.mRole;
 	}
-	constructor(private mIdx: number, private mRole: string) {
+	constructor(idx: number, role: string) {
 		super();
-
+		this.mIdx = idx;
+		this.mRole = role;
 		this.mOn = ResourceManager.Handle.getCommon(
 			`${this.mRole}_btn_on.png`,
 		).texture;
@@ -306,14 +303,19 @@ export class RecBtn extends PIXI.Sprite {
 		// 녹음한 음성 들을때, 스파인 길이 조정
 		if (this.mRole == 'speacker' || this.mRole == 'fin') {
 			this.mSpine.state.timeScale = window['currentAlphabet'].duration;
+		} else if (this.mRole == 'rec') {
+			this.mSpine.state.timeScale = 0.54; // 5.55초
+		} else if (this.mRole == 'listen') {
+			this.mSpine.state.timeScale = 0.66; // 4.54초
 		}
 
 		this.mSpine.visible = false;
 		this.mSpine.state.addListener({
-			complete: () => {
+			complete: async () => {
+				if (this.mRole == 'rec') return;
 				this.mSpine.visible = false;
-				(this.parent as RecRemote).next(this.mIdx + 1);
-				(this.parent as RecRemote).setBtnFlag(true);
+				await (this.parent as RecRemote).next(this.mIdx + 1);
+				await (this.parent as RecRemote).setBtnFlag(true);
 				if (this.mRole == 'fin') {
 					(this.parent.parent as Sound2).endGame();
 				}
@@ -322,20 +324,16 @@ export class RecBtn extends PIXI.Sprite {
 
 		this.on('pointertap', () => {
 			if (this.mFlag) {
-				let delay = 0;
-				if (this.mRole == 'listen') {
-					delay = 1.5;
-				}
 				this.onPointertap();
-				if (window['Android']) {
-					gsap.delayedCall(delay, () => {
-						this.timeSpine();
-					});
-				} else {
-					this.timeSpine();
-				}
+				this.timeSpine();
 			}
 		});
+	}
+
+	async completeRec() {
+		this.mSpine.visible = false;
+		await (this.parent as RecRemote).next(this.mIdx + 1);
+		await (this.parent as RecRemote).setBtnFlag(true);
 	}
 
 	start() {
@@ -467,10 +465,11 @@ export class RecRemote extends PIXI.Container {
 		await this.stopAffor();
 		this.mAffor.visible = true;
 		this.mAfforAni = gsap.timeline({ repeat: -1, repeatDelay: 3 });
-		this.mAfforAni.to(this.mAffor, { alpha: 1, duration: 0 });
-		this.mAfforAni.to(this.mAffor.scale, { x: 1, y: 1, duration: 0.5 });
-		this.mAfforAni.to(this.mAffor.scale, { x: 1, y: 1, duration: 1 });
-		this.mAfforAni.to(this.mAffor, { alpha: 0, duration: 0.5 });
+		this.mAfforAni
+			.to(this.mAffor, { alpha: 1, duration: 0 })
+			.to(this.mAffor.scale, { x: 1, y: 1, duration: 0.5 })
+			.to(this.mAffor.scale, { x: 1, y: 1, duration: 1 })
+			.to(this.mAffor, { alpha: 0, duration: 0.5 });
 	}
 
 	stopAffor(): Promise<void> {
@@ -489,16 +488,12 @@ export class RecRemote extends PIXI.Container {
 	async btnEvent() {
 		for (const btn of this.mBtnAry) {
 			btn.onPointertap = async () => {
-				await this.clickSnd();
+				// await this.clickSnd();
 				await this.stopAffor();
 
 				// 스피커 눌렀을 때,
 				await this.setBtnFlag(false);
 				btn.able(true);
-
-				if (PhonicsApp.Handle.controller.bgmFlag) {
-					window['bgm'].volume = 0;
-				}
 
 				// RecBtn spine 모션이 끝나면 다음단계로 넘긴다. RecBtn=>timeSpine() 에 있음
 				if (btn.role == 'speacker' || btn.role == 'fin') {
@@ -508,34 +503,32 @@ export class RecRemote extends PIXI.Container {
 				/**true면 bgm 나와야 할 때, ex_ 녹음하고 듣기버튼 안눌렀을때 */
 				/**false면 bgm 멈춰있어야 할 때, ex_ 녹음하고 듣기버튼 바로눌렀을때 */
 				// 녹음 눌렀을 때,
-				if (btn.role == 'rec') {
+				else if (btn.role == 'rec') {
 					await this.clickRec();
+					await btn.completeRec();
 				}
-
 				// 듣기 눌렀을 때,
-				if (btn.role == 'listen') {
+				else if (btn.role == 'listen') {
+					// isIOS() ? window['recSnd'].play() : await this.clickListen();
 					await this.clickListen();
 				}
 
-				if (PhonicsApp.Handle.controller.bgmFlag) {
-					window['bgm'].volume = 1;
-				}
 				//fin 체크버튼 눌렀을 때는 RecBtn에서 스파인 끝나는 타이밍에 endGame을 켜준다.
 
-				// btn 에서 setBtnFlag(true)가동
-				// await this.setBtnFlag(true);
+				/**
+				 * btn 원이 돌아가는 타이머 스파인이 끝나는 타이밍에
+				 * btn 에서 setBtnFlag(true)가동
+				 */
 			};
 		}
 	}
 
 	clickSnd(): Promise<void> {
 		return new Promise<void>(resolve => {
-			console.log(`clickSnd_start`);
 			let snd = window['clickSnd'];
 			snd.play();
 			gsap.delayedCall(snd.duration, () => {
 				snd = null;
-				console.log(`clickSnd_end`);
 				resolve();
 			});
 		});
@@ -543,12 +536,10 @@ export class RecRemote extends PIXI.Container {
 
 	clickSpeacker(): Promise<void> {
 		return new Promise<void>(resolve => {
-			console.log(`currentAlphabet_start`);
 			let snd = window['currentAlphabet'];
 			snd.play();
 			gsap.delayedCall(snd.duration, () => {
 				snd = null;
-				console.log(`currentAlphabet_end`);
 				resolve();
 			});
 		});
@@ -565,7 +556,7 @@ export class RecRemote extends PIXI.Container {
 			} else {
 				// 웹브라우저에서 실행할 때,
 				if (window['recSnd']) {
-					window['recSnd'].pause();
+					window['recSnd'].stop();
 					window['recSnd'] = null;
 				}
 				if (window['recorder']) {
@@ -587,19 +578,21 @@ export class RecRemote extends PIXI.Container {
 						recorder.startRecording();
 
 						const sleep = m => new Promise(r => setTimeout(r, m));
-						await sleep(3000);
+						await sleep(4500);
+						await window['recorder'].stopRecording(function() {
+							const blob = window['recorder'].getBlob();
+							const audioSrc = window.URL.createObjectURL(blob);
+							window['recSnd'] = document.createElement('audio');
+							window['recSnd'].src = audioSrc;
+						});
+						resolve();
 					})
 					.catch(error => {
 						console.log(error);
-						alert(
-							`브라우저 설정에서 해당사이트에 대한 마이크설정을 허용해주세요.`,
-						);
-						location.reload();
+						history.go(-1);
+						resolve();
 					});
 			}
-			gsap.delayedCall(3, () => {
-				resolve();
-			});
 		});
 	}
 
@@ -607,32 +600,31 @@ export class RecRemote extends PIXI.Container {
 		return new Promise<void>(resolve => {
 			if (window['Android']) {
 				window['Android'].startSound();
+				console.log(window['Android'].startSound);
 			} else {
 				if (window['recSnd']) {
 					window['recSnd'].play();
 				} else {
+					window['recSnd'].stop();
+					window['recSnd'] = null;
 					window['recorder'].stopRecording(function() {
 						const blob = window['recorder'].getBlob();
 						const audioSrc = window.URL.createObjectURL(blob);
-						const audio = new Audio(audioSrc);
-						window['recSnd'] = audio;
+						window['recSnd'] = document.createElement('audio');
+						window['recSnd'].src = audioSrc;
 						window['recSnd'].play();
 					});
 				}
 			}
 
-			gsap.delayedCall(3, async () => {
+			gsap.delayedCall(4, async () => {
 				if (window['Android']) {
-					// await window['Android'].stopSound();
-					gsap.delayedCall(1.5, async () => {
-						await window['Android'].stopSound();
-						resolve();
-					});
+					await window['Android'].stopSound();
+					resolve();
 				} else {
-					window['recSnd'].pause();
+					window['recSnd'].stop();
 					resolve();
 				}
-				// resolve();
 			});
 		});
 	}
@@ -663,6 +655,7 @@ export class Sound2 extends SoundModule {
 
 	// 데이터 리셋 및 재설정
 	async onInit() {
+		!isIOS() ? (window['bgm'].volume = 0.5) : null;
 		Config.currentMode = 1;
 		Config.currentIdx = 1;
 
@@ -672,6 +665,7 @@ export class Sound2 extends SoundModule {
 			ResourceManager.Handle.getCommon('sound2_bg.png').texture,
 		);
 		this.addChild(bg);
+		await PhonicsApp.Handle.controller.settingGuideSnd('guide/sound_2.mp3');
 	}
 
 	// 게임 UI 생성
@@ -679,10 +673,6 @@ export class Sound2 extends SoundModule {
 		await this.createObject();
 		await this.mCameraRemote.onInit();
 		await this.mRecRemote.onInit();
-
-		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('guide/sound_2.mp3').sound,
-		);
 		await PhonicsApp.Handle.controller.startGuide();
 
 		await this.mCameraRemote.clickBubble();

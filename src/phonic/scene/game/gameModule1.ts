@@ -7,9 +7,9 @@ import { gameData } from '@/phonic/core/resource/product/gameData';
 import { shuffleArray } from '@/com/util/Util';
 import { Game } from './game';
 import { Btn } from '@/phonic/widget/btn';
-import { debugLine } from '@/phonic/utill/gameUtil';
+import { isIOS } from '@/phonic/utill/gameUtil';
 import Config from '@/com/util/Config';
-import { Star, StarBar } from '@/phonic/widget/star';
+import { StarBar } from '@/phonic/widget/star';
 import pixiSound from 'pixi-sound';
 import { Eop } from '@/phonic/widget/eop';
 import { PhonicsApp } from '@/phonic/core/app';
@@ -40,12 +40,19 @@ export class ExamCard extends PIXI.Sprite {
 		return this.mState;
 	}
 
+	private mIdx: number;
+	private mQuizText: { text: string; isCorrect: boolean };
+	private mVariationIdx: number;
+
 	constructor(
-		private mIdx: number,
-		private mQuizText: { text: string; isCorrect: boolean },
-		private mVariationIdx: number,
+		idx: number,
+		quizText: { text: string; isCorrect: boolean },
+		variationIdx: number,
 	) {
 		super();
+		this.mIdx = idx;
+		this.mQuizText = quizText;
+		this.mVariationIdx = variationIdx;
 		this.mState = true;
 
 		this.createBg();
@@ -162,7 +169,7 @@ export class ExamCard extends PIXI.Sprite {
 		});
 	}
 
-	// 클릭했을때, overwhite
+	// 클릭했을때, override
 	async onPointerTap() {
 		//
 	}
@@ -174,7 +181,6 @@ export class Game1 extends GameModule {
 	private mCorrectCardAry: Array<ExamCard>;
 	private mEndGameFlag: boolean;
 	private mSpeakerBtn: Btn;
-	private mSpeakerSnd: PIXI.sound.Sound;
 
 	private mRocketStage: PIXI.Container;
 	private mRocket: PIXI.Sprite;
@@ -203,36 +209,39 @@ export class Game1 extends GameModule {
 	}
 
 	private mEop: Eop;
+	private mIsPlayingGuide: boolean;
 
 	constructor() {
 		super('game1');
 	}
 
 	async onInit() {
+		!isIOS() ? (window['bgm'].volume = 1) : null;
 		this.mCompleteFlag = false;
 		Config.currentMode = 2;
 		Config.currentIdx = 0;
 		await pixiSound.resumeAll();
 
-		this.mVariationIdx = Math.ceil(Math.random() * 3);
+		const variationCount = 3;
+		this.mVariationIdx = Math.ceil(Math.random() * variationCount);
 
-		console.group(
-			`%c Game_1 __variation :`,
-			'color:#fff;background:#000;font-weight:800;padding-right:20px;',
-		);
+		console.groupCollapsed(`[ ${this.moduleName} ] 베리에이션 인덱스 `);
 		console.log(
 			`[%c now: ${this.mVariationIdx}`,
 			'color: red; font-weight:800;',
-			']/ total: 3 ',
+			`]/ total: ${variationCount} `,
 		);
 		console.groupEnd();
 
+		// 퀴즈 보기박스 갯수
+		const quizBoxCount = 8;
+
 		const images = [];
-		for (let i = 1; i <= 8; i++) {
+		for (let i = 1; i <= quizBoxCount; i++) {
 			const file = `game1_ex${this.mVariationIdx}_answer_box_${i}.png`;
 			images.push(file);
 		}
-		for (let i = 1; i <= 8; i++) {
+		for (let i = 1; i <= quizBoxCount; i++) {
 			const file = `game1_ex${this.mVariationIdx}_box_${i}.png`;
 			images.push(file);
 		}
@@ -241,9 +250,8 @@ export class Game1 extends GameModule {
 		images.push(`game1_gauge${this.mVariationIdx}_ship.png`);
 
 		await ResourceManager.Handle.loadCommonResource({ images: images });
-		if (this.mAffordance) {
-			this.mAffordance.kill();
-		}
+		this.mAffordance ? this.mAffordance.kill() : null;
+
 		this.mAfforSnd = ResourceManager.Handle.getCommon(
 			'scaffolding_sfx.mp3',
 		).sound;
@@ -259,7 +267,6 @@ export class Game1 extends GameModule {
 		this.mRocketStage = null;
 		this.mRocket = null;
 		this.mRocketMask = null;
-		this.mSpeakerSnd = null;
 		this.mAfforHand = null;
 
 		const bg = new PIXI.Sprite(
@@ -271,23 +278,10 @@ export class Game1 extends GameModule {
 		this.mSpeakerBtn.position.set(config.width / 2, 80);
 		this.addChild(bg, this.mSpeakerBtn);
 
-		await PhonicsApp.Handle.controller.settingGuideSnd(
-			ResourceManager.Handle.getCommon('guide/game_1.mp3').sound,
-		);
-
 		// 카드생성
 		await this.createExamCard();
-		for (const card of this.mExamAry) {
-			if (card.isCorrect) {
-				this.mSpeakerSnd = ResourceManager.Handle.getCommon(
-					`${Config.subjectNum}_${card.text}.mp3`,
-				).sound;
-				break;
-			}
-		}
 		// 각 카드 위치 지정
 		this.setCardPos();
-		// await this.setCardPos();
 		// 카드 클릭했을때,
 		await this.registCardEvent();
 		// 스텝(별) 생성
@@ -295,20 +289,37 @@ export class Game1 extends GameModule {
 
 		// 로켓 생성 및 시간설정
 		await this.createRocket();
-
-		await PhonicsApp.Handle.controller.startGuide();
-	}
-
-	async onStart() {
 		this.mSpeakerBtn.interact(false);
 		this.mSpeakerBtn.onPointerTap = async () => {
-			if (!this.mSpeakerSnd) {
-				return;
-			}
-
 			await this.afforFuction('click');
 		};
 
+		window['rocket_timer'] = async (flag: boolean) => {
+			if (!this.mRocket || !this.mRocketMask) {
+				window['rocket_timer'] = () => null;
+				return;
+			}
+
+			await this.resetAffor();
+			this.mIsPlayingGuide = true;
+
+			const rocket = gsap.getTweensOf(this.mRocket)[0];
+			const rocketMask = gsap.getTweensOf(this.mRocketMask)[0];
+			if (flag) {
+				rocket ? rocket.resume() : null;
+				rocketMask ? rocketMask.resume() : null;
+				this.mIsPlayingGuide = false;
+				await this.registAffordance();
+			} else {
+				rocket ? rocket.pause() : null;
+				rocketMask ? rocketMask.pause() : null;
+			}
+		};
+	}
+
+	async onStart() {
+		await PhonicsApp.Handle.controller.settingGuideSnd('guide/game_1.mp3');
+		await PhonicsApp.Handle.controller.startGuide();
 		await this.speakerAffor();
 
 		await this.cardInteraction(true);
@@ -328,26 +339,12 @@ export class Game1 extends GameModule {
 	}
 
 	// 다음스텝(별)으로
-	nextStar() {
-		this.mStarBar.onStar(this.mModuleStep);
+	async nextStar() {
+		await this.mStarBar.onStar(this.mModuleStep);
 		this.mModuleStep += 1;
+		const correctLength = gameData[`day${config.subjectNum}`][`list`].length;
+		this.mModuleStep >= correctLength ? null : await this.afforFuction('click');
 	}
-
-	// 정답 스피커 사운드 교체
-	private nextSound(): Promise<void> {
-		return new Promise<void>(resolve => {
-			for (const card of this.mExamAry) {
-				if (card.isCorrect) {
-					this.mSpeakerSnd = ResourceManager.Handle.getCommon(
-						`${Config.subjectNum}_${card.text}.mp3`,
-					).sound;
-					break;
-				}
-			}
-			resolve();
-		});
-	}
-
 	// -----------------------------------------------------------로켓
 	// 로켓 생성
 	createRocket(): Promise<void> {
@@ -405,7 +402,10 @@ export class Game1 extends GameModule {
 
 			this.mRocketStage.alpha = 0;
 			gsap
-				.to(this.mRocketStage, { alpha: 1, duration: 0.25 })
+				.to(this.mRocketStage, {
+					alpha: 1,
+					duration: 0.25,
+				})
 				.eventCallback('onComplete', () => {
 					resolve();
 				});
@@ -429,14 +429,14 @@ export class Game1 extends GameModule {
 			.eventCallback('onComplete', () => {
 				gsap.killTweensOf(this.mRocket);
 				gsap.killTweensOf(this.mRocketMask);
-				const timeover = gsap.timeline({ repeat: 3, ease: Power0.easeNone });
-				timeover.to(this.mRocket, { angle: -15, duration: 0.2 });
-				timeover.to(this.mRocket, { angle: 15, duration: 0.2 });
-				timeover.to(this.mRocket, { angle: 0, duration: 0.2 });
-
-				// gsap.to(this.mRocket, { angle: -10, duration: 0.25 });
-				// gsap.to(this.mRocket, { angle: 10, duration: 0.25 }).delay(0.25);
-				// gsap.to(this.mRocket, { angle: 0, duration: 0.25 }).delay(0.5);
+				const timeover = gsap.timeline({
+					repeat: 3,
+					ease: Power0.easeNone,
+				});
+				timeover
+					.to(this.mRocket, { angle: -15, duration: 0.2 })
+					.to(this.mRocket, { angle: 15, duration: 0.2 })
+					.to(this.mRocket, { angle: 0, duration: 0.2 });
 
 				this.mTimeOver = gsap.delayedCall(1, async () => {
 					await this.endGame(true);
@@ -503,7 +503,6 @@ export class Game1 extends GameModule {
 
 			let yIndex = 0;
 			for (let i = 0; i < this.mExamAry.length; i++) {
-				const total = this.mExamAry.length;
 				const box = this.mExamAry[i];
 				i >= 4 ? (yIndex = 1) : null;
 				gsap
@@ -524,6 +523,13 @@ export class Game1 extends GameModule {
 	private async registCardEvent() {
 		for (const box of this.mExamAry) {
 			box.onPointerTap = async () => {
+				if (this.mAfforSnd) {
+					this.mAfforSnd.stop();
+				}
+				for (const card of this.mCorrectCardAry) {
+					gsap.killTweensOf(card);
+					card.angle = 0;
+				}
 				await this.resetAffor();
 				this.cardInteraction(false);
 				this.mSpeakerBtn.interact(false);
@@ -532,24 +538,21 @@ export class Game1 extends GameModule {
 				this.resumeRocketTime(false);
 
 				if (box.isCorrect) {
-					this.mSpeakerSnd = null;
 					await box.correct();
-					await this.nextSound();
-					this.nextStar();
+					await this.nextStar();
 				} else {
 					this.shakeCorrectCard();
 					await box.wrong();
 				}
 
 				await this.checkEndGame();
+				this.cardInteraction(true);
 
 				// 카드 클릭하면 로켓 재시작
 				this.resumeRocketTime(true);
 
 				// 4초 후에도 카드 클릭이 없으면 어포던스실행
-				this.registAffordance();
-
-				this.cardInteraction(true);
+				await this.registAffordance();
 				this.mSpeakerBtn.interact(true);
 			};
 		}
@@ -558,36 +561,9 @@ export class Game1 extends GameModule {
 	// 모든 카드 활성화/ 비활성화
 	cardInteraction(flag: boolean) {
 		for (const card of this.mExamAry) {
-			// if (card.state) {
 			card.interactive = flag;
 			card.buttonMode = flag;
-			// } else {
-			// 	card.interactive = false;
-			// 	card.buttonMode = false;
-			// }
 		}
-	}
-
-	// 4초주기로 정답카드를 흔들어 주는 모션 코드
-	private shakeCorrectCard(): Promise<void> {
-		return new Promise<void>(resolve => {
-			for (const correct of this.mCorrectCardAry) {
-				if (correct.state) {
-					const timeline = gsap.timeline({});
-					timeline.to(correct, { angle: 15, duration: 0.15 });
-					timeline.to(correct, { angle: -15, duration: 0.15 });
-					timeline.to(correct, { angle: 0, duration: 0.15 });
-				}
-			}
-			let duration = 1;
-			if (this.mAfforSnd) {
-				this.mAfforSnd.play();
-				duration = this.mAfforSnd.duration + 1;
-			}
-			gsap.delayedCall(duration, () => {
-				resolve();
-			});
-		});
 	}
 
 	// 4초 주기로 아무 클릭없으면 정답 흔들림
@@ -604,11 +580,15 @@ export class Game1 extends GameModule {
 		this.mSpeakerBtn.interact(false);
 		this.resumeRocketTime(false);
 		await this.resetAffor();
-		mode ? this.speakerAffor(mode) : this.speakerAffor();
-		await this.shakeCorrectCard();
-		this.resumeRocketTime(true);
+		mode ? await this.speakerAffor(mode) : await this.speakerAffor();
 		this.mSpeakerBtn.interact(true);
-		this.registAffordance();
+
+		if (this.mIsPlayingGuide) {
+			return;
+		}
+		this.resumeRocketTime(true);
+		await this.shakeCorrectCard();
+		await this.registAffordance();
 	}
 
 	// 스피커 위에 손올려두고 사운드 재생
@@ -637,13 +617,40 @@ export class Game1 extends GameModule {
 					.yoyo(true);
 			}
 
-			this.mSpeakerSnd.play();
-			gsap.delayedCall(this.mSpeakerSnd.duration, () => {
-				if (this.mAfforHand) {
-					gsap.killTweensOf(this.mAfforHand);
-					this.removeChild(this.mAfforHand);
-					this.mAfforHand = null;
+			if (window['currentAlphabet']) {
+				window['currentAlphabet'].play();
+				gsap.delayedCall(window['currentAlphabet'].duration, () => {
+					if (this.mAfforHand) {
+						gsap.killTweensOf(this.mAfforHand);
+						this.removeChild(this.mAfforHand);
+						this.mAfforHand = null;
+					}
+					resolve();
+				});
+			} else {
+				resolve();
+			}
+		});
+	}
+
+	// 4초주기로 정답카드를 흔들어 주는 모션 코드
+	private shakeCorrectCard(): Promise<void> {
+		return new Promise<void>(resolve => {
+			for (const correct of this.mCorrectCardAry) {
+				if (correct.state) {
+					const timeline = gsap.timeline({});
+					timeline
+						.to(correct, { angle: 15, duration: 0.15 })
+						.to(correct, { angle: -15, duration: 0.15 })
+						.to(correct, { angle: 0, duration: 0.15 });
 				}
+			}
+			let duration = 0.5;
+			if (this.mAfforSnd) {
+				this.mAfforSnd.play();
+				duration = this.mAfforSnd.duration + 0.5;
+			}
+			gsap.delayedCall(duration, () => {
 				resolve();
 			});
 		});
@@ -699,45 +706,48 @@ export class Game1 extends GameModule {
 		this.mEndGameFlag ? await this.endGame() : null;
 	}
 
-	async createTimeOverPop() {
-		const end = new PIXI.Container();
-		end.zIndex = 20;
-		this.addChild(end);
+	async createTimeOverPop(): Promise<void> {
+		return new Promise<void>(resolve => {
+			const end = new PIXI.Container();
+			end.zIndex = 20;
+			this.addChild(end);
 
-		this.mEndDimmed = new PIXI.Graphics();
-		this.mEndDimmed.beginFill(0x000000, 1);
-		this.mEndDimmed.drawRect(0, 0, Config.width, Config.height);
-		this.mEndDimmed.endFill();
-		this.mEndDimmed.alpha = 0;
+			this.mEndDimmed = new PIXI.Graphics();
+			this.mEndDimmed.beginFill(0x000000, 1);
+			this.mEndDimmed.drawRect(0, 0, Config.width, Config.height);
+			this.mEndDimmed.endFill();
+			this.mEndDimmed.alpha = 0;
 
-		this.mEndDimmed.interactive = true;
-		end.addChild(this.mEndDimmed);
-		gsap.to(this.mEndDimmed, { alpha: 0.8, duration: 0.5 });
-		const againImg = new PIXI.Sprite(
-			ResourceManager.Handle.getCommon('again_img.png').texture,
-		);
-		againImg.anchor.set(0.5);
-		againImg.position.set(Config.width / 2, Config.height / 2 - 64 - 30);
-		againImg.alpha = 0;
-		gsap.to(againImg, { alpha: 1, duration: 0.5 });
-		gsap.to(againImg.scale, { x: 0, y: 0, duration: 0 }).delay(0.5);
-		gsap.to(againImg.scale, { x: 1, y: 1, duration: 0.25 }).delay(0.5);
+			this.mEndDimmed.interactive = true;
+			end.addChild(this.mEndDimmed);
+			gsap.to(this.mEndDimmed, { alpha: 0.8, duration: 0.5 });
+			const againImg = new PIXI.Sprite(
+				ResourceManager.Handle.getCommon('again_img.png').texture,
+			);
+			againImg.anchor.set(0.5);
+			againImg.position.set(Config.width / 2, Config.height / 2 - 64 - 30);
+			againImg.alpha = 0;
+			gsap.to(againImg, { alpha: 1, duration: 0.5 });
+			gsap.to(againImg.scale, { x: 0, y: 0, duration: 0 }).delay(0.5);
+			gsap.to(againImg.scale, { x: 1, y: 1, duration: 0.25 }).delay(0.5);
 
-		const againBtn = new PIXI.Sprite(
-			ResourceManager.Handle.getCommon('again_btn.png').texture,
-		);
-		againBtn.anchor.set(0.5);
-		againBtn.position.set(Config.width / 2, Config.height / 2 + 180);
+			const againBtn = new PIXI.Sprite(
+				ResourceManager.Handle.getCommon('again_btn.png').texture,
+			);
+			againBtn.anchor.set(0.5);
+			againBtn.position.set(Config.width / 2, Config.height / 2 + 180);
 
-		end.addChild(againImg, againBtn);
+			end.addChild(againImg, againBtn);
 
-		againBtn.interactive = true;
-		againBtn.buttonMode = true;
-		againBtn.once('pointertap', async () => {
-			await this.deleteMemory();
-			this.mEndDimmed = null;
-			await this.onInit();
-			await this.onStart();
+			againBtn.interactive = true;
+			againBtn.buttonMode = true;
+			againBtn.once('pointertap', async () => {
+				await this.deleteMemory();
+				this.mEndDimmed = null;
+				await this.onInit();
+				await this.onStart();
+				resolve();
+			});
 		});
 	}
 

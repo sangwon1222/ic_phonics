@@ -21,17 +21,22 @@ export class LoadingBar extends ObjectBase {
 	}
 
 	async load() {
+		const bg = new PIXI.Graphics();
+		bg.beginFill(0x333333, 1);
+		bg.drawRect(0, 0, Config.width, Config.height);
+		bg.endFill();
+		this.addChild(bg);
+
 		this.mLoaderName = `loadingbar0${Math.floor(Math.random() * 5 + 1)}.json`;
 		this.mLoader = new PIXI.Loader();
-		this.mLoader.reset();
-		await this.mLoader
-			.add(
-				'loading',
-				`${Config.restAPIProd}ps_${Config.appName}/viewer/common/spines/${this.mLoaderName}`,
-			)
-			.load((loader, resources) => {
-				this.create();
-			});
+
+		let url = '';
+		Config.restAPIProd.slice(-2) == 'g/'
+			? (url = `${Config.restAPIProd}ps_phonics/viewer/common/spines/${this.mLoaderName}`)
+			: (url = `${Config.restAPIProd}viewer/common/spines/${this.mLoaderName}`);
+		await this.mLoader.add('loading', url).load((loader, resources) => {
+			this.create();
+		});
 	}
 
 	private create() {
@@ -99,6 +104,7 @@ export class LoadingBar extends ObjectBase {
 
 	remove() {
 		this.mLoader.destroy();
+		this.mLoader.reset();
 		this.mLoader = null;
 	}
 }
